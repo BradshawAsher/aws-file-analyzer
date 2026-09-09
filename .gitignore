@@ -20,3 +20,12 @@ build/
 # System
 .DS_Store
 Thumbs.db
+
+# Build, Deploy & Test Artifacts
+app.zip
+logs.zip
+logs_dir/
+publish/
+.wrangler/
+test-results/
+playwright-report/

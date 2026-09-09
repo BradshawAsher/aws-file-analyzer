@@ -1,4 +1,4 @@
-﻿# System Architecture Specification
+# System Architecture Specification
 
 ## 1. Executive Summary
 
@@ -148,11 +148,33 @@ flowchart TB
 
 ---
 
-## 5. Architectural Trade-Offs & Decisions
-
 | Decision | Selected Option | Alternative Considered | Trade-Off Rationale |
 | :--- | :--- | :--- | :--- |
-| **AI Provider** | Google Gemini (`gemini-3.1-flash-lite`) | OpenAI GPT-4o | Gemini offers competitive multimodal vision, faster throughput, lower cost, and OpenAI compatibility layer for zero-friction integration. |
+| **AI Provider** | Google Gemini (`gemini-2.5-flash` / `1.5-flash`) | OpenAI GPT-4o | Gemini offers state-of-the-art multimodal vision, higher token limits, lower latency, and zero per-token expense under free-tier allowances. |
 | **Media Delivery to LLM** | AWS S3 Pre-Signed URLs + Inline Base64 | Streaming raw byte streams through backend RAM | Eliminates server memory bloat; allows flexible cloud hosting while supporting Gemini's strict input format requirements. |
 | **Response Format** | Enforced JSON Object Schema | Free-form Markdown / Natural Language | Guarantees reliable frontend parsing and schema adherence for UI fields without regex parsing. |
 | **Result Caching** | Relational Azure SQL Cache | In-memory Redis Cache | Cost efficiency: Leverages existing SQL database without provisioning additional Redis clusters for low-to-medium loads. |
+| **Frontend Hosting** | Cloudflare Pages | Azure Static Web Apps / S3 Website | Cloudflare Pages provides unlimited free bandwidth, global edge distribution, and instantaneous preview deploys at \$0 cost. |
+| **Secrets Management**| Azure Key Vault + Managed Identity | App Settings / Environment Variables | Prevents credential exposure in source code or CI logs; secrets are resolved at runtime via passwordless Entra ID identity tokens. |
+
+---
+
+## 6. Multi-Cloud Deployment & Zero-Trust Infrastructure
+
+### 6.1 Topology & Endpoints
+* **Frontend CDN**: [https://aws-file-analyzer.pages.dev](https://aws-file-analyzer.pages.dev) (Cloudflare Pages)
+* **Backend API**: [https://app-afa-eycaz6z3q3pp4.azurewebsites.net](https://app-afa-eycaz6z3q3pp4.azurewebsites.net) (Azure App Service Linux F1)
+* **Database**: `sql-afa-eycaz6z3q3pp4.database.windows.net` / `FileAnalyzer` (Azure SQL Serverless `GP_S_Gen5_1`)
+* **Key Vault**: `kv-afa-eycaz6z3q3pp4.vault.azure.net` (Azure Key Vault with RBAC)
+* **Storage**: AWS S3 Bucket `aws-file-analyzer-bd3b69e5` (`us-east-2`)
+
+### 6.2 Zero-Trust Security Architecture
+1. **Passwordless Managed Identity**: The App Service uses a System-Assigned Managed Identity (`1432c434-a0a0-4294-8ebd-7a207e84d298`) assigned the `Key Vault Secrets User` role. Secrets (`gemini-api-key`, `jwt-key`, `aws-access-key-id`, `aws-secret-access-key`) are referenced using `@Microsoft.KeyVault(...)` syntax and resolved directly into environment variables by Azure without code intervention.
+2. **Database Least Privilege**: Azure SQL data-plane access for the App Service identity is granted explicitly via Entra ID SQL role mappings (`db_datareader`, `db_datawriter`), preventing the need for embedded SQL administrative credentials.
+3. **CORS Boundary**: Kestrel enforces a strict origin policy allowing only `https://aws-file-analyzer.pages.dev` and local development origins, rejecting unapproved third-party web clients.
+
+### 6.3 Cost Optimization & \$0 Spending Target
+* **App Service**: F1 Free SKU running on Linux container runtime (\$0).
+* **Azure SQL Serverless**: `GP_S_Gen5_1` with automatic pause after 60 minutes of inactivity (\$0 under free grant allowance).
+* **Cloudflare Pages**: Free tier with unlimited edge bandwidth and automatic SSL certificates (\$0).
+* **AWS S3**: Micro-tier storage within standard free usage guidelines.

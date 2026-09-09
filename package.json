@@ -1,0 +1,17 @@
+{
+  "name": "aws-file-analyzer",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:backend && npm run test:frontend && npm run test:e2e && npm run test:playwright",
+    "test:frontend": "npm --prefix frontend run test:ci",
+    "test:backend": "dotnet test backend.Tests/OpenAiChat.Tests.csproj",
+    "test:e2e": "node e2e/run-smoke.js",
+    "test:playwright": "node e2e/run-playwright.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "cross-env": "^7.0.3"
+  }
+}

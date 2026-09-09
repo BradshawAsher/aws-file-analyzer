@@ -1,4 +1,4 @@
-﻿# Technical Interview Preparation & Project Defense Guide
+# Technical Interview Preparation & Project Defense Guide
 ## Project: AWS File Analyzer
 
 This guide contains the exact talking points, architectural explanations, edge cases, and technical Q&A you need to ace software engineering interviews when discussing this project.
@@ -109,10 +109,54 @@ This guide contains the exact talking points, architectural explanations, edge c
 **Answer**:
 > *"This project started as a collaborative initiative where my dad and I explored AWS cloud architectures together. As the project grew, I took full ownership of the codebase: I modernized the .NET 8 backend architecture, implemented the Repository and Unit of Work pattern, integrated JWT authentication with BCrypt hashing, engineered the PDF text extraction and chunking pipeline with PdfPig, migrated the AI analysis provider from OpenAI to Google Gemini, built the React frontend with Tailwind CSS, and added the client-side audio narration engine."*
 
----
-
 ### Q11: *"If you had another two weeks to work on this, what would you build?"*
 **Answer**:
 1. **Interactive Geolocation Map**: Plot image landmark coordinates directly onto an interactive Mapbox/Leaflet UI to create an automated travel photo timeline.
 2. **Vector Embeddings & Semantic Search**: Index parsed PDF and text summaries using Gemini Embeddings (`models/gemini-embedding-2`) and store them in a vector database (e.g. pgvector or Azure AI Search) for natural language semantic search across all uploaded files.
 3. **Automated CI/CD**: Add GitHub Actions pipelines for automated linting, security scanning, and unit testing with `xUnit` and LocalStack.
+
+---
+
+## 🌐 6. Cloud Infrastructure, Security & Multi-Cloud Deployment
+
+### Q12: *"How did you design a zero-trust architecture across multi-cloud infrastructure (Cloudflare + Azure + AWS)?"*
+**Answer**:
+* **Principle of Least Privilege**: Each component only has the minimal permissions required for its lifecycle:
+  * **Cloudflare Pages** is purely a static presentation tier, holding no backend secrets or database credentials.
+  * **Azure App Service** connects to **Azure Key Vault** using a **System-Assigned Managed Identity** with the scoped `Key Vault Secrets User` RBAC role. No connection strings or API keys are stored in source code or deployment scripts.
+  * **AWS S3** delegates temporary access to clients using **Presigned URLs** with an aggressive 60-minute TTL, avoiding granting public bucket access or distributing AWS IAM credentials to browser clients.
+
+---
+
+### Q13: *"How does Azure Key Vault with System-Assigned Managed Identity eliminate secret sprawl?"*
+**Answer**:
+* Traditionally, applications store database passwords and third-party API keys in `appsettings.json` or CI/CD secrets variables, which creates leakage risk in source history, log output, or developer machines.
+* With Azure Managed Identity, Microsoft Entra ID assigns a cryptographically verifiable enterprise identity to the App Service host (`1432c434-a0a0-4294-8ebd-7a207e84d298`).
+* The App Service references secrets using `@Microsoft.KeyVault(...)` syntax. The Azure App Service host runtime requests a short-lived OAuth token from Entra ID and injects the secrets into memory without human involvement or static credentials.
+
+---
+
+### Q14: *"How did you achieve a \$0/month operating cost while running live multi-cloud enterprise workloads?"*
+**Answer**:
+* **Azure App Service (F1 Linux)**: Utilizes Azure's perpetually free tier allocation for compute (60 CPU minutes/day).
+* **Azure SQL Serverless (`GP_S_Gen5_1`)**: Configured with a 60-minute **auto-pause** delay. Compute scales to zero when no transactions are executing, staying within the Azure for Students 100,000 vCore-second free allowance.
+* **Cloudflare Pages**: Free tier offers unlimited bandwidth, instant SSL, and worldwide edge CDN delivery at \$0.
+* **AWS S3**: Micro-tier storage costs pennies at portfolio demo volume.
+* **Google Gemini**: Utilizes the free-tier API quotas with model fallback to ensure high uptime at \$0 cost.
+
+---
+
+### Q15: *"What challenges did you face deploying a cross-origin SPA on Cloudflare Pages talking to an Azure App Service API, and how did you resolve them?"*
+**Answer**:
+* **CORS Preflight (OPTIONS)**: Modern browsers block cross-origin requests (`https://aws-file-analyzer.pages.dev` to `https://app-afa-eycaz6z3q3pp4.azurewebsites.net`) unless the server returns appropriate headers on the preflight `OPTIONS` request.
+* **Resolution**: Configured Kestrel CORS middleware in ASP.NET Core:
+  ```csharp
+  builder.Services.AddCors(options => {
+      options.AddPolicy("CorsPolicy", policy => {
+          policy.WithOrigins(allowedOrigins)
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+      });
+  });
+  ```
+  Bound `allowedOrigins` dynamically to App Service environment variables (`Cors__AllowedOrigins__0 = https://aws-file-analyzer.pages.dev`), and verified `OPTIONS` preflight returns HTTP 204 with `Access-Control-Allow-Origin: https://aws-file-analyzer.pages.dev`.

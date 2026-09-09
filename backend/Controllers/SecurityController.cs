@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Google.Apis.Auth;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using OpenAiChat.Dto;
 using OpenAiChat.Models;
 using OpenAiChat.Repository;
@@ -14,11 +16,13 @@ namespace OpenAiChat.Controllers
     {
         private readonly ITokenService _tokenService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IConfiguration? _configuration;
 
-        public SecurityController(ITokenService tokenService, IUnitOfWork uow)
+        public SecurityController(ITokenService tokenService, IUnitOfWork uow, IConfiguration? configuration = null)
         {
             _tokenService = tokenService;
             _unitOfWork = uow;
+            _configuration = configuration;
         }
         /// <summary>
         ///  Create access token
@@ -117,6 +121,79 @@ namespace OpenAiChat.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
 
+        }
+
+        /// <summary>
+        ///  Authenticate via Google OAuth 2.0 ID Token
+        /// </summary>
+        /// <param name="dto">Google ID Token payload</param>
+        /// <returns>JWT Access and Refresh tokens</returns>
+        [HttpPost("google-login")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.IdToken))
+            {
+                return BadRequest("Empty Google ID token!");
+            }
+
+            GoogleJsonWebSignature.Payload payload;
+            try
+            {
+                var settings = new GoogleJsonWebSignature.ValidationSettings();
+                var googleClientId = _configuration?["Authentication:Google:ClientId"]
+                    ?? _configuration?["Google:ClientId"];
+
+                if (!string.IsNullOrWhiteSpace(googleClientId))
+                {
+                    settings.Audience = new[] { googleClientId };
+                }
+
+                payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, settings);
+            }
+            catch (InvalidJwtException ex)
+            {
+                return BadRequest($"Invalid Google token: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Google validation error: {ex.Message}");
+            }
+
+            var email = payload.Email;
+            var name = !string.IsNullOrWhiteSpace(payload.Name) ? payload.Name : email;
+            var username = $"google_{payload.Subject}";
+
+            var existingLogins = await _unitOfWork.UserLogin
+                .GetAllAsync()
+                .ConfigureAwait(false);
+
+            var existingUser = existingLogins.FirstOrDefault(u =>
+                u.Username.Equals(username, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(email) && u.Username.Equals(email, StringComparison.OrdinalIgnoreCase)));
+
+            if (existingUser == null)
+            {
+                existingUser = new UserLoginModel
+                {
+                    Username = !string.IsNullOrEmpty(email) ? email : username,
+                    Password = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N"))
+                };
+                _unitOfWork.UserLogin.Add(existingUser);
+                await _unitOfWork.CompleteAsync().ConfigureAwait(false);
+            }
+
+            var claims = new[]
+            {
+                new Claim("name", name ?? "Google User"),
+                new Claim("email", email ?? string.Empty),
+                new Claim("role", "User"),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            var accessToken = _tokenService.GenerateAccessToken(claims);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            return Ok(new { accessToken = accessToken, refreshToken = refreshToken });
         }
 
     }

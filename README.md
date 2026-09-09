@@ -1,73 +1,84 @@
-﻿# ☁️ AWS File Analyzer & AI Multimodal Summarizer
+# ☁️ AWS File Analyzer & AI Multimodal Summarizer
 
-> **An intelligent, full-stack cloud application that ingests local documents and images into AWS S3, performs multimodal AI analysis via Google Gemini, caches results in Azure SQL, and synthesizes speech narration in real-time.**
+> **An enterprise multi-cloud intelligent document intelligence platform. Hosted on Cloudflare Pages, powered by .NET 8 on Azure App Service with Azure Key Vault Managed Identity, persisted in Azure SQL Serverless, storing media in AWS S3, and driven by Google Gemini Multimodal Vision & LLMs.**
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-aws--file--analyzer.pages.dev-F38020?style=for-the-badge&logo=cloudflarepages&logoColor=white)](https://aws-file-analyzer.pages.dev)
+[![API Status](https://img.shields.io/badge/API_Health-200_OK-0078D4?style=for-the-badge&logo=azuredevops&logoColor=white)](https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
+[![Cloudflare Pages](https://img.shields.io/badge/Cloudflare-Pages-F38020?style=flat&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com/)
+[![Azure App Service](https://img.shields.io/badge/Azure-App_Service_F1-0089D6?style=flat&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
+[![Azure Key Vault](https://img.shields.io/badge/Azure-Key_Vault_RBAC-0078D4?style=flat&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
+[![Azure SQL](https://img.shields.io/badge/Azure-SQL_Serverless-0078D4?style=flat&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/en-us/products/azure-sql/)
 [![AWS S3](https://img.shields.io/badge/AWS-S3_Storage-FF9900?style=flat&logo=amazons3&logoColor=white)](https://aws.amazon.com/s3/)
-[![Azure SQL](https://img.shields.io/badge/Azure-SQL_Database-0078D4?style=flat&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/en-us/products/azure-sql/)
 [![Google Gemini](https://img.shields.io/badge/Google-Gemini_AI-4285F4?style=flat&logo=google&logoColor=white)](https://ai.google.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS_v3-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
 ---
 
-## 📌 Overview
+## 📌 Live Demo & Overview
 
-**AWS File Analyzer** bridges enterprise cloud infrastructure with multimodal generative AI. It is designed to demonstrate cloud architecture best practices:
+* **Production Web App:** [https://aws-file-analyzer.pages.dev](https://aws-file-analyzer.pages.dev)
+* **Backend API Endpoint:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net](https://app-afa-eycaz6z3q3pp4.azurewebsites.net)
+* **Health Check:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health](https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health)
 
-1. **Secure Ingestion**: Ingests files into private Amazon S3 buckets and generates cryptographically signed, short-lived **Pre-Signed URLs** to maintain least-privilege security.
-2. **Multimodal AI Analysis**: Routes files through specialized intelligence pipelines powered by **Google Gemini**, starting with `gemini-3.1-flash-lite` and automatically falling back across compatible Flash models when a model is rate-limited or temporarily unavailable.
-3. **Cost-Efficient Caching**: Persists file metadata and structured JSON analysis in Azure SQL to eliminate duplicate AI token costs.
-4. **Interactive Browser Speech**: Synthesizes client-side audio playback using the browser's native Web Speech API.
+**AWS File Analyzer** demonstrates multi-cloud orchestration across **Cloudflare**, **Microsoft Azure**, **Amazon Web Services (AWS)**, and **Google Cloud (Gemini AI)**:
+
+1. **Global Edge Delivery**: React SPA deployed on **Cloudflare Pages** edge network for sub-millisecond static asset delivery and instant SSL.
+2. **Zero-Trust Identity & Secrets**: .NET 8 API running on **Azure App Service Linux** leveraging **System-Assigned Managed Identity** to retrieve cryptographic JWT signing keys and API credentials from **Azure Key Vault** (zero secrets stored in code or repository).
+3. **Secure AWS S3 Storage**: Ingests files into private Amazon S3 buckets and returns short-lived, cryptographically signed **Pre-Signed URLs** (60-min TTL) to ensure least privilege.
+4. **Multimodal Generative AI**: Ingests and summarizes images, PDFs, and text documents using **Google Gemini**, with automatic model fallback hierarchy (`gemini-2.5-flash` -> `gemini-1.5-flash`).
+5. **Cost-Controlled Serverless Database**: Stores user auth, upload history, and cached AI results in **Azure SQL Serverless** configured with a 60-minute auto-pause, resulting in an estimated **\$0/month operating cost**.
 
 ---
 
-## 🏛️ System Architecture
+## 🏛️ Multi-Cloud System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Frontend (React 18 + Tailwind CSS)"]
-        UI[User Interface]
-        Auth[JWT Auth & LocalStorage]
-        Voice[Web Speech API Audio Player]
+    subgraph Edge ["Global Edge Tier (Cloudflare)"]
+        CF["Cloudflare Pages (React 18 SPA)"]
+        BrowserAuth["JWT Auth & LocalStorage"]
+        Voice["Web Speech API Narration"]
     end
 
-    subgraph Backend [".NET 8 Web API Gateway"]
-        Security[Security Controller / JWT & BCrypt]
-        UploadService[File Upload Service]
-        AnalysisService[File Analysis Service Router]
-        
-        subgraph SpecializedServices ["Specialized Analyzers"]
-            ImageSvc[ImageService - Gemini Vision]
-            PdfSvc[PdfService - PdfPig + Chunking]
-            TextSvc[TextService - Text Summarizer]
+    subgraph AzureCloud ["Microsoft Azure Cloud"]
+        subgraph ComputeTier ["Compute & API Gateway"]
+            AppService["Azure App Service Linux (F1 Free)"]
+            SecCtrl["SecurityController (BCrypt & JWT)"]
+            UploadSvc["FileUploadService"]
+            AnalysisSvc["FileAnalysisService"]
+            HealthCheck["Health Check (/health)"]
         end
-        
-        Repo[Generic Repository & Unit of Work]
+
+        subgraph SecurityTier ["Zero-Trust Secrets Management"]
+            KeyVault[("Azure Key Vault (RBAC)")]
+            ManagedId["System-Assigned Managed Identity"]
+        end
+
+        subgraph DataTier ["Relational Persistence"]
+            AzureSQL[("Azure SQL Serverless (GP_S_Gen5_1)<br/>Auto-Pause 60m")]
+        end
     end
 
-    subgraph Cloud ["Cloud & External Services"]
-        S3[(AWS S3 Storage)]
-        AzureSQL[(Azure SQL Database)]
-        Gemini[Google Gemini API]
+    subgraph AWSCloud ["Amazon Web Services"]
+        S3[("AWS S3 Storage<br/>(aws-file-analyzer-bd3b69e5)")]
     end
 
-    UI -->|1. Register / Login| Security
-    Security -->|Verify BCrypt & Issue JWT| AzureSQL
-    UI -->|2. Upload File with Bearer Token| UploadService
-    UploadService -->|3. Put Object & Generate Presigned URL| S3
-    UploadService -->|4. Save Upload Metadata| Repo
-    Repo -->|Persist History| AzureSQL
+    subgraph GoogleCloud ["Google Cloud AI"]
+        Gemini["Google Gemini Multimodal Vision & LLM"]
+    end
 
-    UI -->|5. Request Analysis fileUrl| AnalysisService
-    AnalysisService -->|Check Cache| Repo
-    Repo -.->|Cache Hit| AzureSQL
-    AnalysisService -->|Cache Miss: Route by MIME Type| SpecializedServices
-    ImageSvc -->|Multimodal Image Data URI Prompt| Gemini
-    PdfSvc -->|Stream & Extract Tokens| Gemini
-    SpecializedServices -->|Save JSON Result| Repo
-    AnalysisService -->|6. Return Structured JSON| UI
-    UI -->|7. Trigger Audio Narration| Voice
+    %% Flow connections
+    CF -->|1. HTTPS Cross-Origin Request| AppService
+    ManagedId -->|2. Passwordless Secret Retrieval| KeyVault
+    AppService -.->|Uses Resolved Secrets| SecCtrl
+    SecCtrl -->|3. Validate & Hash| AzureSQL
+    UploadSvc -->|4. Stream Binary & Sign URL| S3
+    UploadSvc -->|5. Record Upload Metadata| AzureSQL
+    AnalysisSvc -->|6. Query S3 Presigned URL| Gemini
+    AnalysisSvc -->|7. Cache Analysis Result| AzureSQL
+    AppService -->|8. Return Structured JSON| CF
+    CF -->|9. Text-to-Speech| Voice
 ```
 
 ---
@@ -100,22 +111,28 @@ flowchart TD
 
 | Domain | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Backend** | C# / ASP.NET Core 8 Web API | High-throughput REST API and service layer |
-| **Data Layer** | Entity Framework Core, Azure SQL / MSSQL | Database migrations, relational persistence, repository abstraction |
-| **Cloud Storage** | AWS S3 (`AWSSDK.S3`) | Secure, scalable object storage with pre-signed URLs |
-| **AI / Multimodal** | Google Gemini Flash fallback chain | Multimodal vision analysis, geolocation detection, structured JSON summarization, transient retries, and rate-limit failover |
+| **Frontend Hosting** | Cloudflare Pages | Global low-latency edge deployment, continuous Git deployments, SSL/TLS |
+| **Backend Compute** | Azure App Service (Linux F1) | .NET 8 Web API containerized execution, Kestrel server |
+| **Secrets Management**| Azure Key Vault (RBAC) | Zero-trust secret storage resolved dynamically via System-Assigned Managed Identity |
+| **Data Layer** | Azure SQL Serverless (`GP_S_Gen5_1`) | Relational persistence with 60-minute auto-pause for \$0 cost ceiling |
+| **Cloud Storage** | AWS S3 (`AWSSDK.S3`) | Encrypted object storage with short-lived presigned URLs |
+| **AI / Multimodal** | Google Gemini Multimodal Vision & LLM | Document summarization, image vision, and fallback hierarchy |
 | **Document Processing**| `UglyToad.PdfPig` | High-performance PDF stream text extraction |
-| **Security** | JWT (JSON Web Tokens), `BCrypt.Net-Next` | Token authentication and password hashing |
-| **Frontend** | React 18, Axios, Tailwind CSS v3 | Responsive single-page application and auth state |
-| **Audio** | Web Speech API | Client-side text-to-speech audio player |
+| **Security & Auth** | JWT, `BCrypt.Net-Next`, Google OAuth 2.0 | Dual authentication (standard email/password + Google Sign-In) |
+| **Frontend Framework**| React 18, Axios, Tailwind CSS v3 | Responsive single-page application and auth state management |
+| **Testing** | xUnit, React Testing Library, Playwright | Unit, integration, and end-to-end smoke testing |
 
 ---
 
 ## 📐 API Reference
 
-### Security Endpoints
+### Health & Monitoring
+* `GET /health` - API health check endpoint (returns `{"status":"healthy"}`).
+
+### Security & Authentication
 * `POST /api/Security/register` - Register a new user with BCrypt-hashed password.
 * `POST /api/Security/login` - Authenticate credentials and receive Access & Refresh JWT tokens.
+* `POST /api/Security/google-login` - Authenticate via Google ID Token (OAuth 2.0) and receive application JWT tokens.
 
 ### File & AI Analysis Endpoints
 * `POST /OpenAIAws/AwsFileUpload` - Upload multipart file to S3, persist metadata to DB, and return 60-min pre-signed URL.
