@@ -1,4 +1,4 @@
-﻿using Amazon.S3;
+using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +12,8 @@ namespace OpenAiChat.Controllers
 {
     [ApiController]
     [Route("[controller]")]
+    [Route("GeminiAws")]
+    [Route("api/ai")]
     [Authorize]
     public class OpenAIAwsController : ControllerBase
     {
