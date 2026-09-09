@@ -143,8 +143,8 @@ builder.Services.AddRateLimiter(options =>
             $"guest-session:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 3,
-                Window = TimeSpan.FromHours(1),
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(15),
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
@@ -158,8 +158,8 @@ builder.Services.AddRateLimiter(options =>
             $"{(isGuest ? "guest" : "user")}:{remoteAddress}",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = isGuest ? 4 : 20,
-                Window = isGuest ? TimeSpan.FromHours(1) : TimeSpan.FromMinutes(1),
+                PermitLimit = isGuest ? 15 : 60,
+                Window = isGuest ? TimeSpan.FromMinutes(15) : TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 AutoReplenishment = true
             });
