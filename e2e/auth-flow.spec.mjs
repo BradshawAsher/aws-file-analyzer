@@ -3,26 +3,29 @@ import { test, expect } from '@playwright/test';
 test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
   const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://aws-file-analyzer.pages.dev';
 
-  test('Landing page renders portfolio overview and CTA buttons', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto(baseURL);
+    await page.evaluate(() => localStorage.clear());
+    await page.goto(baseURL);
+  });
+
+  test('Landing page renders portfolio overview and CTA buttons', async ({ page }) => {
     await expect(page.locator('h1')).toContainText('Analyze files across four cloud platforms');
     await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Try the live analyzer/i })).toBeVisible();
   });
 
   test('Guest session starts live demo analyzer directly without logging in', async ({ page }) => {
-    await page.goto(baseURL);
     await page.getByRole('button', { name: /Try the live analyzer/i }).click();
 
     // Guest analyzer dashboard should open
     await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
-    await expect(page.getByText('Guest demo session')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Sign in/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Exit guest demo/i })).toBeVisible();
+    await expect(page.getByText('short-lived guest session')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Sign in$/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Exit demo/i })).toBeVisible();
   });
 
   test('Login form renders credentials inputs and Google Sign-In button', async ({ page }) => {
-    await page.goto(baseURL);
     await page.getByRole('button', { name: 'Log in' }).click();
 
     await expect(page.getByRole('heading', { name: 'Log In' })).toBeVisible();
@@ -62,7 +65,6 @@ test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
   });
 
   test('End-to-End Live User Login, Dashboard View, and Logout', async ({ page }) => {
-    await page.goto(baseURL);
     await page.getByRole('button', { name: 'Log in' }).click();
 
     // Enter test credentials
@@ -82,7 +84,6 @@ test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
   });
 
   test('New User Registration seamlessly auto-logs in directly to Dashboard without relogging', async ({ page }) => {
-    await page.goto(baseURL);
     await page.getByRole('button', { name: 'Log in' }).click();
 
     // Switch to Register view
