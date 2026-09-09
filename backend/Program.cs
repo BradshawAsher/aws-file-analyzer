@@ -1,4 +1,4 @@
-using Amazon.S3;
+ï»¿using Amazon.S3;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -14,16 +14,50 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Text;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+});
 
-string modelName = builder.Configuration["OpenAI:ModelName"];
-string ApiKey = builder.Configuration["OpenAI:ApiKey"];
+// Explicitly ensure user secrets from the backend assembly are loaded
+builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true);
+builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
+builder.Configuration.AddEnvironmentVariables();
+
+// Support both Gemini (via OpenAI-compatible endpoint) and legacy OpenAI configurations
+string apiKey = builder.Configuration["Gemini:ApiKey"] 
+    ?? builder.Configuration["OpenAI:ApiKey"] 
+    ?? string.Empty;
+
+if (string.IsNullOrWhiteSpace(apiKey))
+{
+    apiKey = "placeholder-key-configure-gemini-apikey";
+}
+
+string modelName = builder.Configuration["Gemini:ModelName"] 
+    ?? builder.Configuration["OpenAI:ModelName"] 
+    ?? "gemini-3.1-flash-lite";
+
+string? customEndpoint = builder.Configuration["Gemini:Endpoint"];
+
+bool isGemini = !string.IsNullOrEmpty(builder.Configuration["Gemini:ApiKey"]) 
+                || !string.IsNullOrEmpty(builder.Configuration["Gemini:ModelName"])
+                || !string.IsNullOrEmpty(customEndpoint)
+                || modelName.StartsWith("gemini", StringComparison.OrdinalIgnoreCase);
+
+OpenAI.OpenAIClientOptions clientOptions = new();
+if (isGemini)
+{
+    clientOptions.Endpoint = new Uri(customEndpoint ?? "https://generativelanguage.googleapis.com/v1beta/openai/");
+}
 
 ChatClient chatClient = new(
     model: modelName,
-    apiKey: ApiKey
+    credential: new System.ClientModel.ApiKeyCredential(apiKey),
+    options: clientOptions
 );
-
 
 // Add services to the container.
 builder.Services.AddSingleton(chatClient);
@@ -31,19 +65,6 @@ builder.Services.AddSingleton(chatClient);
 builder.Services.AddHttpClient();
 
 builder.Services.AddControllers();
-
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-//builder.Services.AddEndpointsApiExplorer();
-/*
-builder.Services.AddSwaggerGen(options =>
-{
-    // Find the XML file path
-    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-
-    // Instruct Swashbuckle to include XML comments
-    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
-});
-*/
 
 // Azure EF Core
 builder.Services.AddDbContext<FileUploadEfDbContext>(options =>
@@ -76,7 +97,7 @@ builder.Services.AddScoped<IFileAnalysisService, FileAnalysisService>();
 JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var keyBytes = Encoding.UTF8.GetBytes(jwtSection["Key"]!);
+var keyBytes = Encoding.UTF8.GetBytes(jwtSection["Key"] ?? "a-very-long-secret-at-least-32-chars-for-dev-fallback");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -92,11 +113,11 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
         ValidateIssuer = true,
-        ValidIssuer = jwtSection["Issuer"],
+        ValidIssuer = jwtSection["Issuer"] ?? "MyApi",
         ValidateAudience = true,
-        ValidAudience = jwtSection["Audience"],
+        ValidAudience = jwtSection["Audience"] ?? "MyApiClients",
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.FromSeconds(900), // default 15 min — reduce for stricter checks
+        ClockSkew = TimeSpan.FromSeconds(900), // default 15 min - reduce for stricter checks
         RoleClaimType = "role", // if you issue "role" claim in JWT
         NameClaimType = "name"   // optional
     };

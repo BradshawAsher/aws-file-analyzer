@@ -37,6 +37,7 @@ namespace OpenAiChat.Services
                 inputText = inputText.Substring(0, MAX_TEXT_BYTES);
             }
 
+            var systemPrompt = "You are a document assistant that outputs only strict JSON.";
             var userPrompt = @"
 Summarize this file and output valid JSON in this format:
 {
@@ -51,17 +52,20 @@ Rules:
 - summary should be 2-3 sentences summarizing the main points.
 ";
 
+            var options = new ChatCompletionOptions
+            {
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat(),
+                Temperature = (float?)0.2
+            };
+
             try
             {
-
-                //ChatCompletion completion = await _chatClient.CompleteChatAsync(prompt).ConfigureAwait(false);
-
-                // Ask the model to summarize
                 var response = await _chatClient.CompleteChatAsync(
-                    new[]
+                    new ChatMessage[]
                     {
-                    new UserChatMessage($"{userPrompt}:\n\n{inputText}")
-                    });
+                        new SystemChatMessage(systemPrompt),
+                        new UserChatMessage($"{userPrompt}:\n\n{inputText}")
+                    }, options);
 
                 return response.Value.Content[0].Text;
             }

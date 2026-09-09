@@ -1,4 +1,4 @@
-using Amazon.S3;
+﻿using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -200,6 +200,8 @@ namespace OpenAiChat.Controllers
         /// [ProducesResponseType(StatusCodes.Status400BadRequest)] // 400: Invalid request url
         /// [ProducesResponseType(StatusCodes.Status500InternalServerError)] // 500: internal server error
         [HttpPost("OpenAISummary")]
+        [HttpPost("GeminiSummary")]
+        [HttpPost("AnalyzeSummary")]
         public async Task<IActionResult> SummarizeFile([FromBody] OpenAISummaryRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.fileUrl))
@@ -222,6 +224,7 @@ namespace OpenAiChat.Controllers
         /// [ProducesResponseType(StatusCodes.Status400BadRequest)] // 400: empty prompt
         /// [ProducesResponseType(StatusCodes.Status429TooManyRequests)] // 429: too many requests
         [HttpPost("OpenAIChat")]
+        [HttpPost("GeminiChat")]
         public async Task<IActionResult> CompleteChat([FromBody] string prompt)
         {
             if (string.IsNullOrWhiteSpace(prompt))
@@ -250,3 +253,4 @@ namespace OpenAiChat.Controllers
 
     }
 }
+

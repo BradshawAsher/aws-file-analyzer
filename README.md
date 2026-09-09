@@ -1,29 +1,28 @@
-# AWS File Analyzer ⚡
+﻿# ☁️ AWS File Analyzer & AI Multimodal Summarizer
 
-> **An intelligent, full-stack cloud application that ingests local documents and images into AWS S3, performs multimodal AI analysis via OpenAI, caches results in Azure SQL, and synthesizes speech narration in real-time.**
+> **An intelligent, full-stack cloud application that ingests local documents and images into AWS S3, performs multimodal AI analysis via Google Gemini, caches results in Azure SQL, and synthesizes speech narration in real-time.**
 
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
-[![AWS S3](https://img.shields.io/badge/AWS-S3-FF9900?style=flat&logo=amazons3&logoColor=white)](https://aws.amazon.com/s3/)
-[![Azure SQL](https://img.shields.io/badge/Azure-SQL_Database-0089D6?style=flat&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/products/azure-sql/)
-[![OpenAI API](https://img.shields.io/badge/OpenAI-GPT--4o_Vision-412991?style=flat&logo=openai&logoColor=white)](https://openai.com/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS_v3-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![AWS S3](https://img.shields.io/badge/AWS-S3_Storage-FF9900?style=flat&logo=amazons3&logoColor=white)](https://aws.amazon.com/s3/)
+[![Azure SQL](https://img.shields.io/badge/Azure-SQL_Database-0078D4?style=flat&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/en-us/products/azure-sql/)
+[![Google Gemini](https://img.shields.io/badge/Google-Gemini_AI-4285F4?style=flat&logo=google&logoColor=white)](https://ai.google.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS_v3-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
 ---
 
-## 📌 Problem & Motivation
+## 📌 Overview
 
-Users and organizations often accumulate vast archives of unlabeled photos, PDFs, and text documents across local drives. Manually opening, identifying geolocation/context, reading multi-page reports, and archiving files is tedious.
+**AWS File Analyzer** bridges enterprise cloud infrastructure with multimodal generative AI. It is designed to demonstrate cloud architecture best practices:
 
-**AWS File Analyzer** automates the entire ingestion-to-intelligence lifecycle:
-1. **Secure Ingestion**: Streams local files directly to AWS S3 storage with temporary, secure Pre-Signed URLs.
-2. **Multimodal AI Analysis**: Routes files through specialized intelligence pipelines (OpenAI Vision for image geolocation/landmark recognition, `PdfPig` text-chunking summarization for documents).
-3. **Cost-Efficient Caching**: Persists file metadata and structured JSON analysis in Azure SQL to eliminate duplicate OpenAI token costs.
-4. **Interactive Voice Playback**: Synthesizes generated summaries and image captions directly into browser audio via the Web Speech API.
+1. **Secure Ingestion**: Ingests files into private Amazon S3 buckets and generates cryptographically signed, short-lived **Pre-Signed URLs** to maintain least-privilege security.
+2. **Multimodal AI Analysis**: Routes files through specialized intelligence pipelines powered by **Google Gemini** (`gemini-3.1-flash-lite`, `gemini-3.6-flash`) for image landmark/geolocation recognition, and `PdfPig` text-chunking summarization for documents.
+3. **Cost-Efficient Caching**: Persists file metadata and structured JSON analysis in Azure SQL to eliminate duplicate AI token costs.
+4. **Interactive Browser Speech**: Synthesizes client-side audio playback using the browser's native Web Speech API.
 
 ---
 
-## 🏗️ System Architecture
+## 🏛️ System Architecture
 
 ```mermaid
 flowchart TD
@@ -39,7 +38,7 @@ flowchart TD
         AnalysisService[File Analysis Service Router]
         
         subgraph SpecializedServices ["Specialized Analyzers"]
-            ImageSvc[ImageService - GPT-4o Vision]
+            ImageSvc[ImageService - Gemini Vision]
             PdfSvc[PdfService - PdfPig + Chunking]
             TextSvc[TextService - Text Summarizer]
         end
@@ -50,7 +49,7 @@ flowchart TD
     subgraph Cloud ["Cloud & External Services"]
         S3[(AWS S3 Storage)]
         AzureSQL[(Azure SQL Database)]
-        OpenAI[OpenAI Chat & Vision API]
+        Gemini[Google Gemini API]
     end
 
     UI -->|1. Register / Login| Security
@@ -64,8 +63,8 @@ flowchart TD
     AnalysisService -->|Check Cache| Repo
     Repo -.->|Cache Hit| AzureSQL
     AnalysisService -->|Cache Miss: Route by MIME Type| SpecializedServices
-    ImageSvc -->|Multimodal Image URL Prompt| OpenAI
-    PdfSvc -->|Stream & Extract Tokens| OpenAI
+    ImageSvc -->|Multimodal Image Data URI Prompt| Gemini
+    PdfSvc -->|Stream & Extract Tokens| Gemini
     SpecializedServices -->|Save JSON Result| Repo
     AnalysisService -->|6. Return Structured JSON| UI
     UI -->|7. Trigger Audio Narration| Voice
@@ -75,9 +74,9 @@ flowchart TD
 
 ## ✨ Key Features
 
-* **🔐 End-to-End JWT Authentication**: Secure user registration and login with BCrypt password hashing, bearer token authorization, and token persistence.
+* **🔒 End-to-End JWT Authentication**: Secure user registration and login with BCrypt password hashing, bearer token authorization, and token persistence.
 * **☁️ AWS S3 Cloud Ingestion**: Reliable direct streaming to Amazon S3 buckets with time-limited pre-signed URLs (60-minute TTL) for secure access delegation.
-* **👁️ Multimodal Image Intelligence**: Vision-based geolocation detection, landmark identification, weather inference, category tagging, confidence scoring, and justification strings.
+* **👁️ Multimodal Image Intelligence**: Powered by Google Gemini (`gemini-3.1-flash-lite`), providing geolocation estimation, landmark identification, weather inference, category tagging, confidence scoring, and justification strings.
 * **📄 Chunked PDF & Document Summarization**: Binary stream extraction using `PdfPig`, intelligent text-chunking (`4000` byte windows) for large multi-page documents, and hierarchical summary aggregation.
 * **💾 Intelligent Result Caching**: Avoids redundant API calls and reduces LLM inference costs by checking Azure SQL for prior analysis before making external requests.
 * **🔊 Audio Narration**: Built-in browser speech synthesis (`SpeechSynthesisUtterance`) that reads image captions and document highlights aloud.
@@ -104,7 +103,7 @@ flowchart TD
 | **Backend** | C# / ASP.NET Core 8 Web API | High-throughput REST API and service layer |
 | **Data Layer** | Entity Framework Core, Azure SQL / MSSQL | Database migrations, relational persistence, repository abstraction |
 | **Cloud Storage** | AWS S3 (`AWSSDK.S3`) | Secure, scalable object storage with pre-signed URLs |
-| **AI / Multimodal** | OpenAI .NET SDK (`OpenAI.Chat`) | GPT-4o Vision image analysis and text summarization |
+| **AI / Multimodal** | Google Gemini (`gemini-3.1-flash-lite`, `gemini-3.6-flash`) | Multimodal vision analysis, geolocation detection, and structured JSON summarization |
 | **Document Processing**| `UglyToad.PdfPig` | High-performance PDF stream text extraction |
 | **Security** | JWT (JSON Web Tokens), `BCrypt.Net-Next` | Token authentication and password hashing |
 | **Frontend** | React 18, Axios, Tailwind CSS v3 | Responsive single-page application and auth state |
@@ -120,11 +119,11 @@ flowchart TD
 
 ### File & AI Analysis Endpoints
 * `POST /OpenAIAws/AwsFileUpload` - Upload multipart file to S3, persist metadata to DB, and return 60-min pre-signed URL.
-* `POST /OpenAIAws/OpenAISummary` - Perform AI analysis on uploaded file URL (Image vision, PDF summary, or text summary).
+* `POST /OpenAIAws/GeminiSummary` (also `/OpenAISummary`) - Perform AI analysis on uploaded file URL (Image vision, PDF summary, or text summary).
 * `GET /OpenAIAws/ListS3Files` - List all S3 objects in bucket with generated pre-signed URLs.
 * `GET /OpenAIAws/ListLoadHistory` - Retrieve upload history filtered by date range and file count.
 * `GET /OpenAIAws/ListAnalysisResults` - Query joined upload history and cached AI analysis results.
-* `POST /OpenAIAws/OpenAIChat` - General text chat completion endpoint.
+* `POST /OpenAIAws/GeminiChat` (also `/OpenAIChat`) - General text chat completion endpoint.
 
 ---
 
@@ -135,7 +134,7 @@ flowchart TD
 * **Trade-off**: Requires AWS IAM credentials configured with `s3:GetObject` permissions for the bucket, but dramatically reduces memory footprint and enables asynchronous client access.
 
 ### 2. Azure SQL Result Caching
-* **Decision**: Before invoking the OpenAI API, query the `FileAnalysisResult` table using the pre-signed URL / object key.
+* **Decision**: Before invoking Gemini, query the `FileAnalysisResult` table using the pre-signed URL / object key.
 * **Trade-off**: Slight database lookup latency on first run in exchange for near-instant response times and 100% token cost elimination on repeated queries.
 
 ### 3. PDF Chunking Strategy
@@ -150,25 +149,29 @@ flowchart TD
 * [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 * [Node.js (v18+)](https://nodejs.org/) and npm
 * [AWS Account](https://aws.amazon.com/) with an S3 Bucket and configured AWS CLI (`aws configure`)
-* [OpenAI API Key](https://platform.openai.com/)
+* [Google Gemini API Key](https://aistudio.google.com/)
 * SQL Server or Azure SQL Database instance
 
 ### 1. Backend Setup
 ```bash
 cd backend
 
-# Configure your connection string, AWS bucket, and OpenAI API Key in appsettings.Development.json:
+# Configure your connection string and AWS bucket in appsettings.Development.json:
 # {
 #   "ConnectionStrings": { "DefaultConnection": "<YOUR_AZURE_SQL_CONNECTION_STRING>" },
 #   "AWS": { "S3BucketName": "<YOUR_S3_BUCKET_NAME>", "Region": "us-east-1" },
-#   "OpenAI": { "ApiKey": "<YOUR_OPENAI_API_KEY>" }
+#   "Gemini": { "ModelName": "gemini-3.1-flash-lite" }
 # }
+
+# Configure your Gemini API Key securely with .NET User Secrets:
+dotnet user-secrets set "Gemini:ApiKey" "<YOUR_GEMINI_API_KEY>"
+dotnet user-secrets set "Gemini:ModelName" "gemini-3.1-flash-lite"
 
 # Restore packages and update database migrations
 dotnet restore
 dotnet ef database update
 
-# Run backend API (runs on https://localhost:5000 / https://localhost:7087)
+# Run backend API (runs on https://localhost:5000)
 dotnet run
 ```
 

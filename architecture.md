@@ -1,199 +1,158 @@
-# System Architecture & Technical Specification: AWS File Analyzer
+﻿# System Architecture Specification
 
-## 1. System Overview
+## 1. Executive Summary
 
-**AWS File Analyzer** is an end-to-end cloud-native document intelligence and multimodal media analysis platform. It enables users to ingest unstructured multi-format files (images, PDFs, text documents) into Amazon S3, routes content through specialized AI processing engines via OpenAI, persists metadata and cached intelligence in Azure SQL Database, and narrates extracted insights via browser-native speech synthesis.
+**AWS File Analyzer** is an end-to-end cloud-native document intelligence and multimodal media analysis platform. It enables users to ingest unstructured multi-format files (images, PDFs, text documents) into Amazon S3, routes content through specialized AI processing engines via Google Gemini, persists metadata and cached intelligence in Azure SQL Database, and narrates extracted insights via browser-native speech synthesis.
 
 ---
 
-## 2. End-to-End Architecture Diagram
+## 2. High-Level Architecture Diagram
 
 ```mermaid
-flowchart TD
-    subgraph ClientLayer ["Client Layer (Frontend)"]
-        UI["React 18 SPA (Tailwind CSS v3)"]
-        AuthCtx["JWT Auth State (LocalStorage)"]
-        TTS["Web Speech API (SpeechSynthesisUtterance)"]
+flowchart TB
+    subgraph ClientLayer ["Client Presentation Tier (React 18 SPA)"]
+        UI["React Web Application (Tailwind CSS)"]
+        AxiosClient["Axios HTTP Client (Bearer JWT Interceptor)"]
+        WebSpeech["Web Speech API (SpeechSynthesis Engine)"]
     end
 
-    subgraph ApiGateway [".NET 8 Web API Backend"]
-        SecCtrl["SecurityController (BCrypt + JWT Generator)"]
+    subgraph ApiGateway [".NET 8 Web API Gateway"]
+        AuthMiddleware["JWT Authentication & Claims Validation Middleware"]
         MainCtrl["OpenAIAwsController (REST Endpoints)"]
+        SecCtrl["SecurityController (BCrypt Registration / JWT Login)"]
+        ExcMiddleware["GlobalExceptionHandler Middleware"]
+        TokenSvc["TokenService (HMAC-SHA256 Token Engine)"]
+    end
+
+    subgraph ServiceLayer ["Domain Services & Orchestration"]
+        UploadSvc["FileUploadService (S3 Ingestion & Pre-Signing)"]
+        AnalysisSvc["FileAnalysisService (MIME Inspection & Caching Router)"]
         
-        subgraph Middleware ["Middleware & Pipeline"]
-            JwtMiddleware["JWT Bearer Authentication Handler"]
-            GlobalEx["Global Exception Filter"]
-        end
-
-        subgraph ServiceLayer ["Service Layer"]
-            UploadSvc["FileUploadService"]
-            AnalysisRouter["FileAnalysisService (MIME Router)"]
-            
-            subgraph Analyzers ["Specialized Analyzers"]
-                ImgSvc["ImageService (GPT-4o Vision)"]
-                PdfSvc["PdfService (PdfPig + 4KB Chunking Engine)"]
-                TxtSvc["TextService (Text Summarizer)"]
-            end
-        end
-
-        subgraph DataAccessLayer ["Data Access Layer"]
-            UoW["Unit of Work Pattern (IUnitOfWork)"]
-            GenRepo["Generic Repository Pattern (IGenericRepository)"]
-            EFCore["Entity Framework Core 8"]
+        subgraph AiEngines ["Multimodal AI Analyzers"]
+            ImgSvc["ImageService (Gemini Multimodal Vision)"]
+            PdfSvc["PdfService (PdfPig Text Stream & Chunking)"]
+            TxtSvc["TextService (HTML/Text Ingestion)"]
         end
     end
 
-    subgraph ExternalCloud ["Cloud & External Services"]
-        S3Bucket[("AWS S3 Bucket (Object Storage)")]
-        AzureSqlDb[("Azure SQL Database (Relational Store & Cache)")]
-        OpenAiApi["OpenAI API (GPT-4o Multimodal Vision & Chat)"]
+    subgraph DataLayer ["Data Access & Relational Persistence"]
+        UoW["UnitOfWork (Transaction Boundary)"]
+        RepoUpload["GenericRepository<FileUploadHistory>"]
+        RepoAnalysis["GenericRepository<FileAnalysisResult>"]
+        RepoUser["GenericRepository<UserLogin>"]
+        DbContext["FileUploadEfDbContext (EF Core 9 SQL Server)"]
     end
 
-    %% Client Auth Flow
-    UI -->|1. Register/Login Credentials| SecCtrl
-    SecCtrl -->|Validate & Hash with BCrypt| UoW
-    SecCtrl -->|Issue Access & Refresh Tokens| AuthCtx
+    subgraph CloudServices ["External Cloud & Managed Providers"]
+        S3["AWS S3 Bucket (Private Storage)"]
+        AzureSql["Azure SQL Database / MSSQL Instance"]
+        GeminiApi["Google Gemini API (gemini-3.1-flash-lite / gemini-3.6-flash)"]
+    end
 
-    %% Upload Flow
-    UI -->|2. Multipart IFormFile + Bearer Token| MainCtrl
+    %% Client Interactions
+    UI --> AxiosClient
+    UI --> WebSpeech
+    AxiosClient --> AuthMiddleware
+    AuthMiddleware --> MainCtrl
+    AuthMiddleware --> SecCtrl
+
+    %% Security Flow
+    SecCtrl --> TokenSvc
+    SecCtrl --> UoW
+
+    %% Controller to Services
     MainCtrl --> UploadSvc
-    UploadSvc -->|3. PutObjectAsync| S3Bucket
-    UploadSvc -->|4. Generate Pre-Signed URL (60-min TTL)| S3Bucket
-    UploadSvc -->|5. Save FileUploadHistory Entity| UoW
-    UoW -->|Commit Transaction| EFCore
-    EFCore --> AzureSqlDb
+    MainCtrl --> AnalysisSvc
 
-    %% Analysis Flow
-    UI -->|6. Trigger Analysis (fileUrl)| MainCtrl
-    MainCtrl --> AnalysisRouter
-    AnalysisRouter -->|7. Query Existing Analysis (Cache Check)| UoW
-    UoW -.->|Cache Hit: Return Cached JSON| AzureSqlDb
-    
-    AnalysisRouter -->|8. Cache Miss: Inspect Content-Type Header| Analyzers
-    ImgSvc -->|Pass Pre-Signed URL & Strict JSON Prompt| OpenAiApi
-    PdfSvc -->|Stream Binary, Extract Text & Chunk| OpenAiApi
-    TxtSvc -->|Fetch String & Summarize| OpenAiApi
+    %% Service Execution
+    UploadSvc --> S3
+    UploadSvc --> UoW
+    AnalysisSvc --> UoW
+    AnalysisSvc --> ImgSvc
+    AnalysisSvc --> PdfSvc
+    AnalysisSvc --> TxtSvc
 
-    Analyzers -->|9. Save FileAnalysisResult Entity| UoW
-    AnalysisRouter -->|10. Return Structured JSON Payload| UI
-    UI -->|11. Synthesize Caption/Summary to Audio| TTS
+    %% AI Integrations
+    ImgSvc -->|Inline Multimodal Data URI Prompt| GeminiApi
+    PdfSvc -->|Stream Binary, Extract Text & Chunk| GeminiApi
+    TxtSvc -->|Fetch String & Summarize| GeminiApi
+
+    %% Persistence
+    UoW --> RepoUpload
+    UoW --> RepoAnalysis
+    UoW --> RepoUser
+    RepoUpload --> DbContext
+    RepoAnalysis --> DbContext
+    RepoUser --> DbContext
+    DbContext --> AzureSql
 ```
 
 ---
 
-## 3. Component Architecture & Responsibility Matrix
+## 3. Component Breakdown & Responsibilities
 
-### 3.1. Frontend Architecture (`/frontend`)
-* **Framework**: React 18 with functional components and React Hooks (`useState`, `useEffect`).
-* **Styling**: Tailwind CSS v3 for responsive component styling.
-* **HTTP Client**: Axios with global `Authorization: Bearer <token>` header injection.
-* **Key Components**:
-  * `App.js`: Root container orchestrating token verification, authentication state, and main view conditional rendering.
-  * `AuthContainer.js` / `LoginForm.js` / `RegisterForm.js`: Handles user credential submission, error messaging, and token storage in `localStorage`.
-  * `FileUploadAnalyze.js`: Drag-and-drop / file selector, upload progress indicator, presigned URL storage, and analysis triggering.
-  * `AiVoicePlayer.js`: Audio player component invoking `window.speechSynthesis` (`SpeechSynthesisUtterance`) to play back the image caption or document summary.
+### 3.1 Presentation Layer (Frontend)
+* **Framework**: React 18, Tailwind CSS v3, Axios.
+* **Responsibilities**:
+  * `LoginForm.js` / `RegisterForm.js`: Captures user credentials and acquires JWT token.
+  * `FileUploadAnalyze.js`: Dispatches multipart uploads and triggers file analysis.
+  * `AiVoicePlayer.js`: Wraps browser `window.speechSynthesis` and `SpeechSynthesisUtterance` to read AI-generated summaries aloud.
 
----
+### 3.2 Gateway & Controllers (.NET 8 Web API)
+* **`SecurityController`**:
+  * `POST /api/Security/register`: Salted password hashing via `BCrypt.Net.BCrypt.HashPassword`.
+  * `POST /api/Security/login`: Verifies passwords via `BCrypt.Net.BCrypt.Verify` and issues signed HMAC-SHA256 JWT access and refresh tokens.
+* **`OpenAIAwsController`**:
+  * `POST /OpenAIAws/AwsFileUpload`: Receives `IFormFile`, pushes to S3, returns generated Pre-Signed URL.
+  * `POST /OpenAIAws/GeminiSummary` (also `/OpenAISummary`): Inspects URL, checks SQL cache, delegates to analyzer service, returns structured JSON.
+  * `GET /OpenAIAws/ListS3Files`: Lists objects in S3 bucket with renewed pre-signed URLs.
+  * `GET /OpenAIAws/ListLoadHistory`: Queries DB for uploaded files in the last $N$ days.
+  * `GET /OpenAIAws/ListAnalysisResults`: Joins `FileUploadHistory` with `FileAnalysisResult`.
+  * `POST /OpenAIAws/GeminiChat` (also `/OpenAIChat`): General chat completion endpoint.
 
-### 3.2. Backend Architecture (`/backend`)
-* **Framework**: ASP.NET Core 8 Web API (C#) using Dependency Injection and standard middleware pipeline.
-* **Controllers**:
-  * `SecurityController`:
-    * `POST /api/Security/register`: Verifies user uniqueness and stores BCrypt salted password hashes.
-    * `POST /api/Security/login`: Verifies credentials and generates JWT access token and refresh token.
-  * `OpenAIAwsController`:
-    * `POST /OpenAIAws/AwsFileUpload`: Receives `IFormFile`, pushes to S3, returns generated Pre-Signed URL.
-    * `POST /OpenAIAws/OpenAISummary`: Inspects URL, checks SQL cache, delegates to analyzer service, returns structured JSON.
-    * `GET /OpenAIAws/ListS3Files`: Lists objects in S3 bucket with renewed pre-signed URLs.
-    * `GET /OpenAIAws/ListLoadHistory`: Queries DB for uploaded files in the last $N$ days.
-    * `GET /OpenAIAws/ListAnalysisResults`: Joins `FileUploadHistory` with `FileAnalysisResult`.
-* **Services**:
-  * `FileUploadService`: Wraps AWS SDK `AmazonS3Client` operations and database history logging.
-  * `FileAnalysisService`: Master router detecting MIME types and delegating to specialized engines.
-  * `ImageService`: Formats multimodal OpenAI prompts requiring structured JSON geolocation/landmark output.
-  * `PdfService`: Uses `UglyToad.PdfPig` for binary extraction and applies chunking for documents $> 12,000$ characters.
-  * `TextService`: Summarizes plain text and HTML payloads.
-* **Data Access & Persistence**:
-  * `GenericRepository<T>` & `UnitOfWork`: Encapsulates EF Core `DbContext` interactions behind an abstraction layer.
-  * `ApplicationDbContext`: Defines `DbSet<UserLoginModel>`, `DbSet<FileUploadModel>`, and `DbSet<FileAnalysisResultModel>`.
+### 3.3 Domain Services & AI Pipelines
+* **`FileUploadService`**: Manages AWS S3 `PutObjectAsync` and creates 60-minute pre-signed URLs via `GetPreSignedUrlRequest`.
+* **`FileAnalysisService`**: Master router. Performs HTTP `GET` header sniffing to detect MIME types (`image/*`, `application/pdf`, `text/*`), checks Azure SQL cache, and persists analysis records.
+* **`ImageService`**: Fetches image bytes from S3 pre-signed URL, converts to base64 Data URI part, and invokes Google Gemini (`gemini-3.1-flash-lite`) requesting strict JSON geolocation and landmark metadata.
+* **`PdfService`**: Uses `PdfPig` to stream binary PDFs. If text exceeds 12,000 characters, it slices into 4,000-byte segments, gathers partial summaries, and executes an aggregate summarization prompt.
+* **`TextService`**: Cleans HTML/whitespace with `HtmlAgilityPack` and produces structured JSON summaries.
 
 ---
 
-## 4. Detailed Data Schemas
+## 4. Database Schema (Azure SQL / Entity Framework Core)
 
-### 4.1. Relational Database Schema (Azure SQL / Entity Framework Core)
-
-#### `UserLogin` Table
-| Column | Type | Constraints | Description |
+### `UserLogin`
+| Column | Type | Constraints | Purpose |
 | :--- | :--- | :--- | :--- |
-| `Id` | `int` | PK, Identity | Unique user ID |
-| `Username` | `nvarchar(max)` | Not Null | User login name |
-| `Password` | `nvarchar(max)` | Not Null | BCrypt salted password hash |
+| `Id` | `int` | Primary Key, Identity | Unique user ID |
+| `UserName` | `nvarchar(450)` | Not Null, Unique Index | Unique login handle |
+| `PasswordHash` | `nvarchar(max)` | Not Null | BCrypt salted hash string |
+| `Role` | `nvarchar(50)` | Nullable | Role authorization claim |
 
-#### `FileUploadHistory` Table
-| Column | Type | Constraints | Description |
+### `FileUploadHistory`
+| Column | Type | Constraints | Purpose |
 | :--- | :--- | :--- | :--- |
-| `Id` | `int` | PK, Identity | Upload event ID |
-| `LocalFileName` | `nvarchar(max)` | Not Null | Original filename |
-| `FileExtension` | `nvarchar(max)` | Not Null | `.jpg`, `.pdf`, `.txt`, etc. |
-| `FileSize` | `bigint` | Not Null | File size in bytes |
-| `LoadTime` | `datetimeoffset` | Not Null | UTC timestamp of upload |
-| `PresignedUrl` | `nvarchar(max)` | Not Null | S3 Pre-signed URL |
+| `Id` | `int` | Primary Key, Identity | Upload event ID |
+| `FileName` | `nvarchar(255)` | Not Null | Original file name |
+| `FileExtension` | `nvarchar(50)` | Not Null | MIME/extension classification |
+| `FileSize` | `bigint` | Not Null | Size in bytes |
+| `LoadedTime` | `datetime2` | Not Null | Upload timestamp |
+| `PresignedUrl` | `nvarchar(max)` | Not Null | Generated temporary access URL |
 
-#### `FileAnalysisResult` Table
-| Column | Type | Constraints | Description |
+### `FileAnalysisResult`
+| Column | Type | Constraints | Purpose |
 | :--- | :--- | :--- | :--- |
-| `Id` | `int` | PK, Identity | Result record ID |
-| `PresignedUrl` | `nvarchar(max)` | Not Null, Indexed | Key linking analysis to file |
-| `AnalysisText` | `nvarchar(max)` | Not Null | JSON response payload from OpenAI |
+| `Id` | `int` | Primary Key, Identity | Analysis record ID |
+| `PresignedUrl` | `nvarchar(450)` | Not Null, Indexed | Matching file URL for cache lookup |
+| `AnalysisText` | `nvarchar(max)` | Not Null | JSON response payload from Gemini |
 
 ---
 
-### 4.2. Structured JSON Output Contracts
+## 5. Architectural Trade-Offs & Decisions
 
-#### Image Analysis Schema (GPT-4o Vision)
-```json
-{
-  "city": "string | null",
-  "region": "string | null",
-  "country": "string | null",
-  "landmark": "string | null",
-  "weather": "string | null",
-  "category": "string",
-  "caption": "string | null",
-  "confidence": "float (0.0 - 1.0)",
-  "justification": "string | null"
-}
-```
-
-#### Document / PDF Analysis Schema
-```json
-{
-  "caption": "string (one sentence overall topic)",
-  "summary": "string (2-3 sentences core points)",
-  "highlights": ["string"],
-  "keywords": ["string"],
-  "sentiment": "positive | neutral | negative"
-}
-```
-
----
-
-## 5. Key Design Decisions & Architectural Trade-offs
-
-| Decision | Chosen Approach | Alternative Considered | Rationale / Trade-off |
+| Decision | Selected Option | Alternative Considered | Trade-Off Rationale |
 | :--- | :--- | :--- | :--- |
-| **Media Delivery to LLM** | AWS S3 Pre-Signed URLs (60-min TTL) | Streaming raw byte streams through backend RAM | Eliminates server memory bloat for multi-MB files; allows OpenAI and clients to fetch directly from S3. |
-| **LLM Caching Layer** | Relational Cache Table in Azure SQL | Redis in-memory cache or no cache | High cost savings on repeat queries; using existing Azure SQL database simplifies deployment without requiring extra Redis infra. |
-| **Large Document Handling** | Stream parsing (`PdfPig`) + 4KB chunking | Sending full raw text in single prompt | Prevents context window overflows, lowers token costs per chunk, and increases summary precision. |
-| **Password Security** | BCrypt hashing with auto-salting | SHA-256 or plain PBKDF2 | BCrypt includes adaptive work factors resistant to GPU brute-force attacks. |
-| **Design Pattern** | Repository & Unit of Work | Direct DbContext calls in controllers | Decouples business logic from EF Core; simplifies mocking for unit testing. |
-
----
-
-## 6. Security Architecture
-
-1. **Authentication**: Stateless JSON Web Tokens (JWT) signed with HMAC-SHA256 containing expiration times.
-2. **Access Delegation**: S3 buckets remain strictly private with public access blocked; access is granted only via cryptographic pre-signed URLs.
-3. **Password Storage**: Passwords are never stored in plaintext; hashed with work factor $\ge 11$ using BCrypt.
-4. **Endpoint Protection**: All data endpoints protected via `[Authorize]` attributes requiring valid Bearer tokens.
+| **AI Provider** | Google Gemini (`gemini-3.1-flash-lite`) | OpenAI GPT-4o | Gemini offers competitive multimodal vision, faster throughput, lower cost, and OpenAI compatibility layer for zero-friction integration. |
+| **Media Delivery to LLM** | AWS S3 Pre-Signed URLs + Inline Base64 | Streaming raw byte streams through backend RAM | Eliminates server memory bloat; allows flexible cloud hosting while supporting Gemini's strict input format requirements. |
+| **Response Format** | Enforced JSON Object Schema | Free-form Markdown / Natural Language | Guarantees reliable frontend parsing and schema adherence for UI fields without regex parsing. |
+| **Result Caching** | Relational Azure SQL Cache | In-memory Redis Cache | Cost efficiency: Leverages existing SQL database without provisioning additional Redis clusters for low-to-medium loads. |

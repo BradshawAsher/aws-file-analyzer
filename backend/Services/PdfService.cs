@@ -33,7 +33,6 @@ namespace OpenAiChat.Services
                 throw new Exception("No text extracted from PDF.");
             }
 
-
             // Chunk if too long
             if (text.Length > MAX_FILE_SIZE_IN_ONE_CHUNK)
             {
@@ -66,7 +65,7 @@ namespace OpenAiChat.Services
 
         private async Task<string> SummarizeTextAsync(string inputText)
         {
-            var systemPrompt = $"You are an PDF assistant that outputs only strict JSON.";
+            var systemPrompt = "You are a PDF assistant that outputs only strict JSON.";
             var userPrompt = @"
 Summarize this PDF and output valid JSON in this format:
 {
@@ -81,14 +80,20 @@ Rules:
 - summary should be 2-3 sentences summarizing the main points.
 ";
 
+            var options = new ChatCompletionOptions
+            {
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat(),
+                Temperature = (float?)0.2
+            };
+
             try
             {
-                // Ask the model to summarize
                 var response = await _chatClient.CompleteChatAsync(
-                    new[]
+                    new ChatMessage[]
                     {
+                        new SystemChatMessage(systemPrompt),
                         new UserChatMessage($"{userPrompt}:\n\n{inputText}")
-                    });
+                    }, options);
                 return response.Value.Content[0].Text;
             }
             catch (Exception)

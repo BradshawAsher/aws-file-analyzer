@@ -3,6 +3,10 @@
     public class OpenAISummaryRequest
     {
         // Property name MUST match the key in your UI Axios payload ("fileUrl")
-        public string fileUrl { get; set; }
+        public string fileUrl { get; set; } = string.Empty;
+    }
+
+    public class FileSummaryRequest : OpenAISummaryRequest
+    {
     }
 }
