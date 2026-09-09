@@ -60,13 +60,18 @@ namespace OpenAiChat.Tests
             };
 
             _mockUserRepo.Setup(r => r.GetAllAsync()).ReturnsAsync(users);
-            _mockTokenService.Setup(t => t.GenerateAccessToken(It.IsAny<IEnumerable<Claim>>())).Returns("mock-access-token");
+            IEnumerable<Claim>? capturedClaims = null;
+            _mockTokenService.Setup(t => t.GenerateAccessToken(It.IsAny<IEnumerable<Claim>>()))
+                .Callback<IEnumerable<Claim>>(claims => capturedClaims = claims.ToArray())
+                .Returns("mock-access-token");
             _mockTokenService.Setup(t => t.GenerateRefreshToken()).Returns("mock-refresh-token");
 
             var result = await _controller.CreateJwtToken(new RegisterDto { UserName = "validUser", Password = "validPassword123!" });
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
+            Assert.Contains(capturedClaims!, claim => claim.Type == "name" && claim.Value == "validUser");
+            Assert.Contains(capturedClaims!, claim => claim.Type == "role" && claim.Value == "User");
         }
 
         [Fact]
@@ -111,6 +116,25 @@ namespace OpenAiChat.Tests
 
             var badRequest = Assert.IsType<BadRequestObjectResult>(result);
             Assert.Equal("Empty Google ID token!", badRequest.Value);
+        }
+
+        [Fact]
+        public void GuestSession_IssuesShortLivedGuestTokenWithoutDatabaseWrite()
+        {
+            _mockTokenService
+                .Setup(service => service.GenerateAccessToken(
+                    It.Is<IEnumerable<Claim>>(claims => claims.Any(claim => claim.Type == "role" && claim.Value == "Guest")),
+                    TimeSpan.FromMinutes(15)))
+                .Returns("guest-access-token");
+
+            var result = _controller.CreateGuestSession();
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var accessToken = okResult.Value?.GetType().GetProperty("accessToken")?.GetValue(okResult.Value);
+            var isGuest = okResult.Value?.GetType().GetProperty("isGuest")?.GetValue(okResult.Value);
+            Assert.Equal("guest-access-token", accessToken);
+            Assert.Equal(true, isGuest);
+            _mockUnitOfWork.Verify(unit => unit.CompleteAsync(), Times.Never);
         }
     }
 }

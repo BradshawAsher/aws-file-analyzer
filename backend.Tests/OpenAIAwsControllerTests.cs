@@ -8,6 +8,7 @@ using OpenAiChat.Controllers;
 using OpenAiChat.Dto;
 using OpenAiChat.Repository;
 using OpenAiChat.Services;
+using System.Security.Claims;
 using System.Text;
 using Xunit;
 
@@ -115,6 +116,42 @@ namespace OpenAiChat.Tests
 
             var badRequest = Assert.IsType<BadRequestObjectResult>(result);
             Assert.Equal("Only PNG, JPEG, GIF, plain text, HTML, and PDF files are supported.", badRequest.Value);
+            _mockUploadService.Verify(service => service.UploadFilesAsync(It.IsAny<List<IFormFile>>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task FileUpload_AsGuest_RejectsMultipleFilesWithoutUploading()
+        {
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                        [new Claim("role", "Guest")],
+                        "Bearer",
+                        "name",
+                        "role"))
+                }
+            };
+
+            var files = new List<IFormFile>
+            {
+                new FormFile(new MemoryStream([1]), 0, 1, "files", "one.txt")
+                {
+                    Headers = new HeaderDictionary(),
+                    ContentType = "text/plain"
+                },
+                new FormFile(new MemoryStream([2]), 0, 1, "files", "two.txt")
+                {
+                    Headers = new HeaderDictionary(),
+                    ContentType = "text/plain"
+                }
+            };
+
+            var result = await _controller.FileUpload(files);
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Guest sessions can upload one file at a time.", badRequest.Value);
             _mockUploadService.Verify(service => service.UploadFilesAsync(It.IsAny<List<IFormFile>>()), Times.Never);
         }
 
