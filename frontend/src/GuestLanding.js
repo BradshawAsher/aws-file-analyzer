@@ -35,7 +35,7 @@ const stack = [
   ["Gemini", "Multimodal analysis with model fallback"],
 ];
 
-export default function GuestLanding({ onLogin }) {
+export default function GuestLanding({ onLogin, onTryGuest, isStartingGuest = false, guestError = "" }) {
   const [selectedSample, setSelectedSample] = useState(samples[0]);
   const swaggerUrl = `${API_BASE_URL}/swagger/index.html`;
 
@@ -82,10 +82,11 @@ export default function GuestLanding({ onLogin }) {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={onLogin}
+                onClick={onTryGuest}
+                disabled={isStartingGuest}
                 className="rounded-xl bg-blue-500 px-6 py-3 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
               >
-                Try the live analyzer
+                {isStartingGuest ? "Starting guest session..." : "Try the live analyzer as a guest"}
               </button>
               <a
                 href={swaggerUrl}
@@ -96,7 +97,8 @@ export default function GuestLanding({ onLogin }) {
                 Explore Swagger API ↗
               </a>
             </div>
-            <p className="mt-4 text-sm text-slate-400">No account is needed to explore this overview. Sign in only to upload and analyze files.</p>
+            <p className="mt-4 text-sm text-slate-400">No account is required. Guest sessions can analyze one file at a time with tighter usage limits.</p>
+            {guestError && <p className="mt-3 text-sm font-semibold text-rose-300" role="alert">{guestError}</p>}
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.07] p-5 shadow-2xl shadow-blue-950/40 backdrop-blur">

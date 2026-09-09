@@ -21,6 +21,7 @@ namespace OpenAiChat.Controllers
     {
         private const int MaxFileCount = 5;
         private const long MaxFileSizeBytes = 5 * 1024 * 1024;
+        private const long GuestMaxFileSizeBytes = 2 * 1024 * 1024;
         private static readonly HashSet<string> AllowedUploadTypes = new(StringComparer.OrdinalIgnoreCase)
         {
             "image/png",
@@ -65,6 +66,7 @@ namespace OpenAiChat.Controllers
         /// [ProducesResponseType(StatusCodes.Status400BadRequest)] // 400: wrong bucket
         /// [ProducesResponseType(StatusCodes.Status500InternalServerError)] // 500: internal server error
         [HttpGet("ListS3Files")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetS3FilesUrls()
         {
             string bucketName = _configuration["AWS:S3BucketName"];
@@ -115,6 +117,7 @@ namespace OpenAiChat.Controllers
         /// [ProducesResponseType(StatusCodes.Status404NotFound)] // 404: no files loaded
         /// [ProducesResponseType(StatusCodes.Status500InternalServerError)] // 500: internal server error
         [HttpGet("ListLoadHistory")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetLoadHistory([FromQuery]int days=1, [FromQuery]int filesLimit=30)
         {
             if (days <= 0 || filesLimit <= 0)
@@ -157,6 +160,7 @@ namespace OpenAiChat.Controllers
         /// [ProducesResponseType(StatusCodes.Status404NotFound)] // 404: no files loaded
         /// [ProducesResponseType(StatusCodes.Status500InternalServerError)] // 500: internal server error
         [HttpGet("ListAnalysisResults")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetAnalysisResults()
         {
             // Test connection string
@@ -207,14 +211,22 @@ namespace OpenAiChat.Controllers
                 return BadRequest("File is empty or not provided.");
             }
 
-            if (files.Count > MaxFileCount)
+            var isGuest = User?.IsInRole("Guest") == true;
+            var maxFileCount = isGuest ? 1 : MaxFileCount;
+            var maxFileSizeBytes = isGuest ? GuestMaxFileSizeBytes : MaxFileSizeBytes;
+
+            if (files.Count > maxFileCount)
             {
-                return BadRequest($"Upload at most {MaxFileCount} files at a time.");
+                return BadRequest(isGuest
+                    ? "Guest sessions can upload one file at a time."
+                    : $"Upload at most {MaxFileCount} files at a time.");
             }
 
-            if (files.Any(file => file.Length <= 0 || file.Length > MaxFileSizeBytes))
+            if (files.Any(file => file.Length <= 0 || file.Length > maxFileSizeBytes))
             {
-                return BadRequest("Each file must be between 1 byte and 5 MB.");
+                return BadRequest(isGuest
+                    ? "Guest files must be between 1 byte and 2 MB."
+                    : "Each file must be between 1 byte and 5 MB.");
             }
 
             if (files.Any(file => !AllowedUploadTypes.Contains(file.ContentType)))
@@ -281,6 +293,7 @@ namespace OpenAiChat.Controllers
         /// [ProducesResponseType(StatusCodes.Status429TooManyRequests)] // 429: too many requests
         [HttpPost("OpenAIChat")]
         [HttpPost("GeminiChat")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> CompleteChat([FromBody] string prompt)
         {
             if (string.IsNullOrWhiteSpace(prompt))

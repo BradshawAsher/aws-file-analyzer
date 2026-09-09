@@ -138,16 +138,32 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 
-    options.AddPolicy("ai", context =>
+    options.AddPolicy("guest-session", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            $"guest-session:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 20,
-                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 3,
+                Window = TimeSpan.FromHours(1),
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+
+    options.AddPolicy("ai", context =>
+    {
+        var isGuest = context.User.IsInRole("Guest");
+        var remoteAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            $"{(isGuest ? "guest" : "user")}:{remoteAddress}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = isGuest ? 4 : 20,
+                Window = isGuest ? TimeSpan.FromHours(1) : TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
 });
 
 // Add Swagger UI with Bearer auth so you can test easily

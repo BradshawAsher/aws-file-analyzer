@@ -1,5 +1,5 @@
-export function isJwtUsable(token, now = Date.now()) {
-  if (!token || typeof token !== "string") return false;
+export function getJwtPayload(token) {
+  if (!token || typeof token !== "string") return null;
 
   try {
     const payloadPart = token.split(".")[1];
@@ -7,10 +7,17 @@ export function isJwtUsable(token, now = Date.now()) {
 
     const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
     const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    const payload = JSON.parse(atob(padded));
-
-    return typeof payload.exp === "number" && payload.exp * 1000 > now;
+    return JSON.parse(atob(padded));
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function isJwtUsable(token, now = Date.now()) {
+  const payload = getJwtPayload(token);
+  return Boolean(payload && typeof payload.exp === "number" && payload.exp * 1000 > now);
+}
+
+export function getJwtRole(token) {
+  return getJwtPayload(token)?.role ?? null;
 }

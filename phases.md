@@ -71,7 +71,7 @@ Global exception handling was added for upload, analysis, and GET flows so failu
 
 The AI integration was migrated to Google Gemini with a configurable model fallback hierarchy. The React 19 frontend was deployed to Cloudflare Pages, while the .NET 8 API, managed secrets, monitoring, and relational persistence were deployed across Azure App Service, Key Vault, Application Insights, and Azure SQL; private object storage remained in AWS S3.
 
-A public guest landing page was added so recruiters can understand and explore the architecture without creating an account. The authenticated analyzer remains protected behind JWT login. Upload limits, MIME checks, API rate limits, expired-token handling, S3 URL allowlisting, canonical `/api/ai` Swagger routes, and a dedicated GitHub Actions regression workflow were also added.
+A public guest landing page and short-lived guest JWT flow were added so recruiters can understand the architecture and run one real file through the analyzer without creating a persistent account. Guest uploads and request rates are more restrictive, while account history and bucket-wide operations remain limited to signed-in users. Upload limits, MIME checks, API rate limits, expired-token handling, S3 URL allowlisting, canonical `/api/ai` Swagger routes, and a dedicated GitHub Actions regression workflow were also added.
 
 **Outcome:** The project became a live, recruiter-friendly multi-cloud portfolio application with safer production boundaries and repeatable regression checks.
 

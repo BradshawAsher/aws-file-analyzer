@@ -1,7 +1,7 @@
-import { isJwtUsable } from "./tokenUtils";
+import { getJwtRole, isJwtUsable } from "./tokenUtils";
 
-function tokenWithExpiration(expiration) {
-  const payload = btoa(JSON.stringify({ exp: expiration }))
+function tokenWithExpiration(expiration, role) {
+  const payload = btoa(JSON.stringify({ exp: expiration, role }))
     .replace(/=/g, "")
     .replace(/\+/g, "-")
     .replace(/\//g, "_");
@@ -17,5 +17,10 @@ describe("isJwtUsable", () => {
   test("rejects expired and malformed tokens", () => {
     expect(isJwtUsable(tokenWithExpiration(500), 1_000_000)).toBe(false);
     expect(isJwtUsable("not-a-jwt", 1_000_000)).toBe(false);
+  });
+
+  test("reads the session role from a JWT", () => {
+    expect(getJwtRole(tokenWithExpiration(2_000, "Guest"))).toBe("Guest");
+    expect(getJwtRole("not-a-jwt")).toBeNull();
   });
 });

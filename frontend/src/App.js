@@ -3,12 +3,16 @@ import FileUploadAnalyzer from "./FileUploadAnalyze";
 import AuthContainer from "./AuthContainer";
 import AiVoicePlayer from "./AiVoicePlayer";
 import GuestLanding from "./GuestLanding";
-import { isJwtUsable } from "./tokenUtils";
+import apiClient from "./apiClient";
+import { getJwtRole, isJwtUsable } from "./tokenUtils";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingToken, setIsCheckingToken] = useState(true);
   const [currentView, setCurrentView] = useState("home");
+  const [sessionType, setSessionType] = useState(null);
+  const [isStartingGuest, setIsStartingGuest] = useState(false);
+  const [guestError, setGuestError] = useState("");
   const [aiAnalysisText, setAiAnalysisText] = useState("");
 
   const setAnalysisText = (analysisText) => {
@@ -25,6 +29,7 @@ export default function App() {
     const token = localStorage.getItem('authToken');
     if (isJwtUsable(token)) {
       setIsLoggedIn(true);
+      setSessionType(getJwtRole(token) === "Guest" ? "guest" : "user");
       setCurrentView("analyzer");
     } else if (token) {
       localStorage.removeItem('authToken');
@@ -36,6 +41,7 @@ export default function App() {
   // Handler passed to the LoginForm
   const handleSuccessfulLogin = () => {
     setIsLoggedIn(true);
+    setSessionType("user");
     setCurrentView("analyzer");
     cleanAnalysisText();
   };
@@ -44,7 +50,35 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('authToken'); // Clear the stored token
     setIsLoggedIn(false);
+    setSessionType(null);
     setCurrentView("home");
+    cleanAnalysisText();
+  };
+
+  const handleGuestSession = async () => {
+    setIsStartingGuest(true);
+    setGuestError("");
+
+    try {
+      const response = await apiClient.post("/api/Security/guest-session");
+      localStorage.setItem("authToken", response.data.accessToken);
+      setIsLoggedIn(true);
+      setSessionType("guest");
+      setCurrentView("analyzer");
+      cleanAnalysisText();
+    } catch (error) {
+      const detail = error.response?.data?.message || error.response?.data;
+      setGuestError(typeof detail === "string" ? detail : "The guest demo is temporarily unavailable.");
+    } finally {
+      setIsStartingGuest(false);
+    }
+  };
+
+  const handleSignInFromGuest = () => {
+    localStorage.removeItem("authToken");
+    setIsLoggedIn(false);
+    setSessionType(null);
+    setCurrentView("auth");
     cleanAnalysisText();
   };
 
@@ -59,6 +93,8 @@ export default function App() {
         <>
         <FileUploadAnalyzer
           handleLogout={handleLogout}
+          isGuest={sessionType === "guest"}
+          onSignIn={handleSignInFromGuest}
           setAnalysisText={setAnalysisText}
           cleanAnalysisText={cleanAnalysisText}/>
         {aiAnalysisText &&
@@ -79,5 +115,12 @@ export default function App() {
     );
   }
 
-  return <GuestLanding onLogin={() => setCurrentView("auth")} />;
+  return (
+    <GuestLanding
+      onLogin={() => setCurrentView("auth")}
+      onTryGuest={handleGuestSession}
+      isStartingGuest={isStartingGuest}
+      guestError={guestError}
+    />
+  );
 }

@@ -13,6 +13,12 @@ namespace OpenAiChat.Security.Jwt
 
         public string GenerateAccessToken(IEnumerable<Claim> claims)
         {
+            var configuredMinutes = double.Parse(_config["Jwt:ExpiresInMinutes"] ?? "15");
+            return GenerateAccessToken(claims, TimeSpan.FromMinutes(configuredMinutes));
+        }
+
+        public string GenerateAccessToken(IEnumerable<Claim> claims, TimeSpan lifetime)
+        {
             var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
             var creds = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256);
 
@@ -20,7 +26,7 @@ namespace OpenAiChat.Security.Jwt
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(double.Parse(_config["Jwt:ExpiresInMinutes"] ?? "15")),
+                expires: DateTime.UtcNow.Add(lifetime),
                 signingCredentials: creds);
 
             string jwtStringToken =  new JwtSecurityTokenHandler().WriteToken(token);

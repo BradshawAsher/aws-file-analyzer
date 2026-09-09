@@ -18,7 +18,7 @@ Add a visual library for uploaded images so users can browse prior work instead 
 
 ## Product Improvements
 
-- Turn the current interactive guest preview into a server-backed read-only demo with curated files, without allowing arbitrary guest uploads.
+- Add automatic cleanup for objects uploaded through short-lived guest sessions.
 - Build upload and analysis history pages with pagination and clear processing states.
 - Add user-facing retry controls when Gemini rate limits trigger the model fallback hierarchy.
 - Stream longer analysis responses and show which fallback model completed the request.

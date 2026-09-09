@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import apiClient from "./apiClient";
 import AiVoicePlayer from "./AiVoicePlayer";
 
-const FileUploadAnalyzer = ({ handleLogout, setAnalysisText, cleanAnalysisText }) => {
+const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, setAnalysisText, cleanAnalysisText }) => {
   const [files, setFiles] = useState([]);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [analyzeResults, setAnalyzeResults] = useState([]);
@@ -80,11 +80,21 @@ const FileUploadAnalyzer = ({ handleLogout, setAnalysisText, cleanAnalysisText }
   return (
     <div className="bg-white shadow-xl rounded-2xl p-6 w-full max-w-xl">
       <h1 className="text-2xl font-bold mb-4 text-gray-800 text-center">AI Multi-File Analyzer</h1>
-      <p className="text-xs text-gray-500 mb-4 text-center">Select one or multiple files for concurrent AWS S3 upload and parallel Gemini analysis</p>
+      <p className="text-xs text-gray-500 mb-4 text-center">
+        {isGuest
+          ? "Guest demo: analyze one supported file up to 2 MB through the live S3 and Gemini pipeline"
+          : "Select one or multiple files for concurrent AWS S3 upload and parallel Gemini analysis"}
+      </p>
+
+      {isGuest && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+          You are using a short-lived guest session. Sign in to unlock multi-file uploads and your full account workflow.
+        </div>
+      )}
 
       <input
         type="file"
-        multiple
+        multiple={!isGuest}
         onChange={handleFileChange}
         className="mb-3 block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
       />
@@ -121,12 +131,29 @@ const FileUploadAnalyzer = ({ handleLogout, setAnalysisText, cleanAnalysisText }
         </button>
       </div>
 
-      <button
-        onClick={handleLogout}
-        className="w-full py-2 px-4 rounded-lg mb-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition text-sm"
-      >
-        Logout
-      </button>
+      {isGuest ? (
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={onSignIn}
+            className="py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition text-sm"
+          >
+            Sign in
+          </button>
+          <button
+            onClick={handleLogout}
+            className="py-2 px-4 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition text-sm"
+          >
+            Exit guest demo
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleLogout}
+          className="w-full py-2 px-4 rounded-lg mb-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition text-sm"
+        >
+          Logout
+        </button>
+      )}
 
       {message && <p className="mt-2 text-center text-sm font-medium text-gray-700">{message}</p>}
 

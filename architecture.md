@@ -94,22 +94,25 @@ flowchart TB
 ### 3.1 Presentation Layer (Frontend)
 * **Framework**: React 19, Tailwind CSS v3, Axios.
 * **Responsibilities**:
-  * `GuestLanding.js`: Presents a public, read-only project overview with sample analysis and links to sign in or inspect Swagger.
+  * `GuestLanding.js`: Presents a public project overview with sample analysis and starts a restricted, short-lived guest session for the live analyzer.
   * `LoginForm.js` / `RegisterForm.js`: Captures user credentials and acquires JWT token.
   * `FileUploadAnalyze.js`: Dispatches multipart uploads and triggers file analysis.
   * `AiVoicePlayer.js`: Wraps browser `window.speechSynthesis` and `SpeechSynthesisUtterance` to read AI-generated summaries aloud.
 
 ### 3.2 Gateway & Controllers (.NET 8 Web API)
 * **`SecurityController`**:
+  * `POST /api/Security/guest-session`: Issues a short-lived Guest JWT without inserting an account into Azure SQL.
   * `POST /api/Security/register`: Salted password hashing via `BCrypt.Net.BCrypt.HashPassword`.
   * `POST /api/Security/login`: Verifies passwords via `BCrypt.Net.BCrypt.Verify` and issues signed HMAC-SHA256 JWT access and refresh tokens.
 * **`OpenAIAwsController`** (canonical Swagger prefix `/api/ai`; legacy prefixes retained for compatibility):
-  * `POST /api/ai/AwsFileUpload`: Validates up to five supported files, pushes them to S3, and returns generated pre-signed URLs.
+  * `POST /api/ai/AwsFileUpload`: Validates up to five supported files for accounts or one file up to 2 MB for guests, pushes them to S3, and returns generated pre-signed URLs.
   * `POST /api/ai/GeminiSummary`: Validates configured-bucket URLs, checks the SQL cache, delegates to the analyzer service, and returns structured JSON.
   * `GET /api/ai/ListS3Files`: Lists objects in S3 with renewed pre-signed URLs.
   * `GET /api/ai/ListLoadHistory`: Queries uploads from the last $N$ days.
   * `GET /api/ai/ListAnalysisResults`: Joins `FileUploadHistory` with `FileAnalysisResult`.
   * `POST /api/ai/GeminiChat`: Provides general text completion through the configured Gemini fallback chain.
+
+Guest JWTs can call only the upload and analysis operations. Bucket listings, account history, saved-result listings, and general chat require a registered-user role.
 
 ### 3.3 Domain Services & AI Pipelines
 * **`FileUploadService`**: Manages AWS S3 `PutObjectAsync` and creates 60-minute pre-signed URLs via `GetPreSignedUrlRequest`.

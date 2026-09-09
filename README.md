@@ -88,6 +88,7 @@ flowchart TD
 ## ✨ Key Features
 
 * **🔒 End-to-End JWT Authentication**: Secure user registration and login with BCrypt password hashing, bearer token authorization, and token persistence.
+* **🧪 Protected Guest Demo**: Short-lived, non-persistent guest JWTs let recruiters run one real file through S3 and Gemini without registering; tighter upload and hourly request limits protect the free-tier services.
 * **☁️ AWS S3 Cloud Ingestion**: Reliable direct streaming to Amazon S3 buckets with time-limited pre-signed URLs (60-minute TTL) for secure access delegation.
 * **👁️ Multimodal Image Intelligence**: Powered by Google Gemini (`gemini-3.1-flash-lite`), providing geolocation estimation, landmark identification, weather inference, category tagging, confidence scoring, and justification strings.
 * **📄 Chunked PDF & Document Summarization**: Binary stream extraction using `PdfPig`, intelligent text-chunking (`4000` byte windows) for large multi-page documents, and hierarchical summary aggregation.
@@ -132,6 +133,7 @@ flowchart TD
 * `GET /health` - API health check endpoint (returns `{"status":"healthy"}`).
 
 ### Security & Authentication
+* `POST /api/Security/guest-session` - Issue a non-persistent 15-minute Guest JWT for the rate-limited live demo.
 * `POST /api/Security/register` - Register a new user with BCrypt-hashed password and receive immediate access tokens (auto-login).
 * `POST /api/Security/login` - Authenticate credentials and receive Access & Refresh JWT tokens.
 * `POST /api/Security/google-login` - Authenticate via Google ID Token (OAuth 2.0) with automated user registration and JWT token issuance.

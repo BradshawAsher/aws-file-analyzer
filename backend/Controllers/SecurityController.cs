@@ -13,7 +13,6 @@ namespace OpenAiChat.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [EnableRateLimiting("auth")]
     public class SecurityController : ControllerBase
     {
         private readonly ITokenService _tokenService;
@@ -34,6 +33,7 @@ namespace OpenAiChat.Controllers
         /// [ProducesResponseType(StatusCodes.Status200OK)] // Access token created
         /// [ProducesResponseType(StatusCodes.Status400BadRequest)] // 400: wrong username or password
         [HttpPost("login")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> CreateJwtToken([FromBody] RegisterDto userNamePasswd)
         {
             if (userNamePasswd == null ||
@@ -62,9 +62,8 @@ namespace OpenAiChat.Controllers
 
             var claims = new[]
             {
-                //new Claim(JwtRegisteredClaimNames.Sub, dto.Username),
-                new Claim("name", "Alice Smith"),
-                new Claim("role", "Admin"), // use "role" if RoleClaimType = "role"
+                new Claim("name", user),
+                new Claim("role", "User"),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -83,6 +82,7 @@ namespace OpenAiChat.Controllers
         /// [ProducesResponseType(StatusCodes.Status400BadRequest)] // 400: empty username or password
         /// [ProducesResponseType(StatusCodes.Status500InternalServerError)] // 500: internal server error
         [HttpPost("register")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Register([FromBody] RegisterDto userNamePasswd)
         {
             if (string.IsNullOrEmpty(userNamePasswd.UserName) || string.IsNullOrEmpty(userNamePasswd.Password))
@@ -142,6 +142,7 @@ namespace OpenAiChat.Controllers
         /// <param name="dto">Google ID Token payload</param>
         /// <returns>JWT Access and Refresh tokens</returns>
         [HttpPost("google-login")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.IdToken))
@@ -207,6 +208,32 @@ namespace OpenAiChat.Controllers
             var refreshToken = _tokenService.GenerateRefreshToken();
 
             return Ok(new { accessToken = accessToken, refreshToken = refreshToken });
+        }
+
+        /// <summary>
+        /// Create a short-lived, non-persistent guest session for the live demo.
+        /// </summary>
+        [HttpPost("guest-session")]
+        [EnableRateLimiting("guest-session")]
+        public IActionResult CreateGuestSession()
+        {
+            var lifetime = TimeSpan.FromMinutes(15);
+            var claims = new[]
+            {
+                new Claim("name", $"Guest-{Guid.NewGuid():N}"[..14]),
+                new Claim("role", "Guest"),
+                new Claim("session_type", "guest"),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            var accessToken = _tokenService.GenerateAccessToken(claims, lifetime);
+
+            return Ok(new
+            {
+                accessToken,
+                expiresInSeconds = (int)lifetime.TotalSeconds,
+                isGuest = true
+            });
         }
 
     }
