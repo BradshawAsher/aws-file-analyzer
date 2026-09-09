@@ -3,7 +3,7 @@ import apiClient from './apiClient';
 
 const REGISTER_URL = '/api/Security/register';
 
-const RegisterForm = ({ onSwitchToLogin }) => {
+const RegisterForm = ({ onSwitchToLogin, onLoginSuccess }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -35,13 +35,23 @@ const RegisterForm = ({ onSwitchToLogin }) => {
 
             if (response.status === 201 || response.status === 200) {
               setIsError(false);
-              setStatusMessage('Registration successful! Redirecting to login...');
-              
-              // Wait a moment then switch to the Login form
-              setTimeout(() => {
-                onSwitchToLogin();
-              }, 1500); 
-
+              const token = response.data?.accessToken;
+              if (token) {
+                localStorage.setItem('authToken', token);
+                setStatusMessage('Registration successful! Logging you in...');
+                setTimeout(() => {
+                  if (onLoginSuccess) {
+                    onLoginSuccess();
+                  } else if (onSwitchToLogin) {
+                    onSwitchToLogin();
+                  }
+                }, 800);
+              } else {
+                setStatusMessage('Registration successful! Redirecting to login...');
+                setTimeout(() => {
+                  if (onSwitchToLogin) onSwitchToLogin();
+                }, 1200); 
+              }
             } else {
               // Handle unexpected success status codes here
               setIsError(true);

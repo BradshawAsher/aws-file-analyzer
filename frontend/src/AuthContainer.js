@@ -26,6 +26,7 @@ function AuthContainer({ onLoginSuccess }) {
       ) : (
         // --- Display Register Form ---
         <RegisterForm 
+          onLoginSuccess={onLoginSuccess}
           // Pass the function to switch back to Login
           onSwitchToLogin={switchToLogin} 
         />

@@ -70,7 +70,31 @@ async function main() {
     }
   });
 
-  // Step 5: Authentication & Azure SQL
+  // Step 5: Swagger OpenAPI Interactive Documentation
+  await runStep('Swagger OpenAPI UI Interactive Documentation Endpoint', async () => {
+    const res = await fetch(`${BACKEND_URL}/swagger/index.html`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    if (!html.includes('Swagger UI')) throw new Error('Swagger UI HTML not found');
+
+    const specRes = await fetch(`${BACKEND_URL}/swagger/v1/swagger.json`);
+    if (!specRes.ok) throw new Error(`HTTP ${specRes.status} on swagger.json`);
+  });
+
+  // Step 6: Registration with Auto-Login Tokens
+  await runStep('User Registration with Instant Auto-Login JWT Token Issuance', async () => {
+    const testUsername = `user_${Date.now()}`;
+    const res = await fetch(`${BACKEND_URL}/api/Security/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: testUsername, password: 'SecurePassword123!' })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.accessToken) throw new Error('No accessToken returned in registration response');
+  });
+
+  // Step 7: Authentication & Azure SQL
   let authToken = '';
   await runStep('Azure SQL Serverless Authentication & JWT Token Issuance', async () => {
     const res = await fetch(`${BACKEND_URL}/api/Security/login`, {
@@ -84,7 +108,7 @@ async function main() {
     authToken = data.accessToken;
   });
 
-  // Step 5: AWS S3 Connectivity
+  // Step 8: AWS S3 Connectivity
   await runStep('AWS S3 Bucket Object Listing with Presigned URLs', async () => {
     const res = await fetch(`${BACKEND_URL}/OpenAIAws/ListS3Files`, {
       headers: { Authorization: `Bearer ${authToken}` }
@@ -92,7 +116,7 @@ async function main() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
   });
 
-  // Step 6: Google Gemini AI
+  // Step 9: Google Gemini AI
   await runStep('Google Gemini LLM Inference Pipeline', async () => {
     const res = await fetch(`${BACKEND_URL}/OpenAIAws/GeminiChat`, {
       method: 'POST',

@@ -5,11 +5,19 @@ export default function AiVoicePlayer({ analysisText }) {
 
   const handleSpeak = () => {
     if (!analysisText) return;
-    let speechText = analysisText;
+    let speechText = "";
 
-    if (analysisText.caption) {
-        speechText = analysisText.caption;
+    if (typeof analysisText === "object" && analysisText !== null) {
+      speechText = analysisText.caption || analysisText.summary || JSON.stringify(analysisText);
+    } else if (typeof analysisText === "string") {
+      try {
+        const parsed = JSON.parse(analysisText);
+        speechText = parsed.caption || parsed.summary || parsed.AnalysisText || analysisText;
+      } catch (e) {
+        speechText = analysisText;
+      }
     }
+
     const utterance = new SpeechSynthesisUtterance(speechText);
     utterance.lang = "en-US";
     utterance.rate = 1.0;

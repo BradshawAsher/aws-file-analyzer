@@ -49,15 +49,32 @@ test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
     await page.locator('button[type="submit"]').click();
 
     // Dashboard should become visible
-    await expect(page.locator('h1')).toHaveText('AI File Analyzer', { timeout: 15000 });
-    await expect(page.locator('input[type="file"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Upload' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Analyze' })).toBeVisible();
+    await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
+    await expect(page.locator('input[type="file"][multiple]')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Upload/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Analyze/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
 
     // Test Logout
     await page.getByRole('button', { name: 'Logout' }).click();
     await expect(page.locator('h2')).toHaveText('Log In', { timeout: 5000 });
     await expect(page.locator('#username')).toBeVisible();
+  });
+
+  test('New User Registration seamlessly auto-logs in directly to Dashboard without relogging', async ({ page }) => {
+    await page.goto(baseURL);
+
+    // Switch to Register view
+    await page.getByRole('button', { name: 'Register' }).click();
+
+    const uniqueUser = `pw_${Date.now()}`;
+    await page.locator('#username').fill(uniqueUser);
+    await page.locator('#password').fill('SecurePassword123!');
+    await page.locator('#confirmPassword').fill('SecurePassword123!');
+    await page.locator('button[type="submit"]').click();
+
+    // Should immediately auto-login and show the Multi-File Dashboard
+    await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
+    await expect(page.locator('input[type="file"][multiple]')).toBeVisible();
   });
 });

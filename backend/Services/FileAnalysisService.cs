@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using OpenAiChat.Models;
 using OpenAiChat.Repository;
 using OpenAiChat.Utils;
@@ -7,6 +7,7 @@ namespace OpenAiChat.Services
 {
     public class FileAnalysisService : IFileAnalysisService
     {
+        private static readonly SemaphoreSlim _dbLock = new SemaphoreSlim(1, 1);
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<FileAnalysisService> _logger;
         private readonly IImageService _imageService;
@@ -28,6 +29,19 @@ namespace OpenAiChat.Services
             _textService = textService;
             _pdfService = pdfService;
             _unitOfWork = unitOfWork;
+        }
+
+        public async Task<List<string>> AnalyzeFilesAsync(List<string> fileUrls)
+        {
+            if (fileUrls == null || fileUrls.Count == 0)
+            {
+                return new List<string>();
+            }
+
+            var tasks = fileUrls.Select(url => AnalyzeFileAsync(url));
+            var results = await Task.WhenAll(tasks);
+
+            return results.ToList();
         }
 
         public async Task<string> AnalyzeFileAsync(string fileUrl)
@@ -57,16 +71,26 @@ namespace OpenAiChat.Services
                 throw new InvalidDataException("Content formet of {textUrl} NOT supported!");
             }
 
-            bool isConnectionStringGood = await _unitOfWork.IsDbConnectionStringGood().ConfigureAwait(false);
-            if (isConnectionStringGood)
+            await _dbLock.WaitAsync().ConfigureAwait(false);
+            bool isConnectionStringGood = false;
+            try
             {
-                //Check if analysis already exists
-                var existingAnalysis = await _unitOfWork.FileAnalysisResult
-                    .Find(f => f.PresignedUrl == fileUrl).FirstOrDefaultAsync();
-                if (existingAnalysis != null)
+                isConnectionStringGood = await _unitOfWork.IsDbConnectionStringGood().ConfigureAwait(false);
+                if (isConnectionStringGood)
                 {
-                    return existingAnalysis.AnalysisText;
+                    //Check if analysis already exists
+                    var existingAnalysis = await _unitOfWork.FileAnalysisResult
+                        .Find(f => f.PresignedUrl == fileUrl).FirstOrDefaultAsync();
+
+                    if (existingAnalysis != null)
+                    {
+                        return existingAnalysis.AnalysisText;
+                    }
                 }
+            }
+            finally
+            {
+                _dbLock.Release();
             }
 
             // Find image info
@@ -84,8 +108,16 @@ namespace OpenAiChat.Services
                             AnalysisText = geoInfo,
                         };
 
-                        _unitOfWork.FileAnalysisResult.Add(analysisResult);
-                        var savedCount = await _unitOfWork.CompleteAsync().ConfigureAwait(false);
+                        await _dbLock.WaitAsync().ConfigureAwait(false);
+                        try
+                        {
+                            _unitOfWork.FileAnalysisResult.Add(analysisResult);
+                            await _unitOfWork.CompleteAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            _dbLock.Release();
+                        }
                     }
 
                     return geoInfo;
@@ -113,8 +145,16 @@ namespace OpenAiChat.Services
                             AnalysisText = summary,
                         };
 
-                        _unitOfWork.FileAnalysisResult.Add(analysisResult);
-                        var savedCount = await _unitOfWork.CompleteAsync().ConfigureAwait(false);
+                        await _dbLock.WaitAsync().ConfigureAwait(false);
+                        try
+                        {
+                            _unitOfWork.FileAnalysisResult.Add(analysisResult);
+                            await _unitOfWork.CompleteAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            _dbLock.Release();
+                        }
                     }
 
                     return summary;
@@ -140,8 +180,16 @@ namespace OpenAiChat.Services
                             AnalysisText = summary,
                         };
 
-                        _unitOfWork.FileAnalysisResult.Add(analysisResult);
-                        var savedCount = await _unitOfWork.CompleteAsync().ConfigureAwait(false);
+                        await _dbLock.WaitAsync().ConfigureAwait(false);
+                        try
+                        {
+                            _unitOfWork.FileAnalysisResult.Add(analysisResult);
+                            await _unitOfWork.CompleteAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            _dbLock.Release();
+                        }
                     }
 
                     return summary;

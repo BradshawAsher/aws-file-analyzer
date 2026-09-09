@@ -174,47 +174,72 @@ namespace OpenAiChat.Controllers
         }
 
         /// <summary>
-        ///  Upload a file to AWS S3
+        ///  Upload one or multiple files to AWS S3 concurrently
         /// </summary>
-        /// <param name="file"></param>
-        /// <returns>Status code of upload status with presigned url</returns>
-        /// [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(string))] // Success response string (presigned url)
-        /// [ProducesResponseType(StatusCodes.Status400BadRequest)] // 400: empty file
-        /// [ProducesResponseType(StatusCodes.Status500InternalServerError)] // 500: internal server error
+        /// <param name="files">One or more files to upload</param>
+        /// <returns>Status code of upload status with presigned urls</returns>
         [HttpPost("AwsFileUpload")]
-        public async Task<IActionResult> FileUpload(IFormFile file)
+        [HttpPost("UploadFiles")]
+        [HttpPost("UploadFile")]
+        public async Task<IActionResult> FileUpload([FromForm] List<IFormFile> files)
         {
-            if (file == null || file.Length == 0)
+            if ((files == null || files.Count == 0) && Request.HasFormContentType && Request.Form.Files.Count > 0)
+            {
+                files = Request.Form.Files.ToList();
+            }
+
+            if (files == null || files.Count == 0)
             {
                 return BadRequest("File is empty or not provided.");
             }
 
-            var presignedUrl = await _fileUploadService.UploadFileAsync(file);
-            return Ok(new { fileUrl = presignedUrl });
+            var presignedUrls = await _fileUploadService.UploadFilesAsync(files);
+            var firstUrl = presignedUrls.FirstOrDefault() ?? string.Empty;
+
+            return Ok(new
+            {
+                fileUrl = firstUrl,
+                fileUrls = presignedUrls,
+                count = presignedUrls.Count
+            });
         }
 
         /// <summary>
-        ///  Analyze image url geolcation information or text url summary
+        ///  Analyze image url geolocation information or text/pdf url summary (single or parallel batch)
         /// </summary>
-        /// <param name="request">Request with fileUrl in http or https format</param>
-        /// <returns>status code</returns>
-        /// [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(string))] // Success response string (geolocation/summary)
-        /// [ProducesResponseType(StatusCodes.Status400BadRequest)] // 400: Invalid request url
-        /// [ProducesResponseType(StatusCodes.Status500InternalServerError)] // 500: internal server error
+        /// <param name="request">Request with fileUrl or fileUrls list</param>
+        /// <returns>status code with analysis string or list of strings</returns>
         [HttpPost("OpenAISummary")]
         [HttpPost("GeminiSummary")]
         [HttpPost("AnalyzeSummary")]
+        [HttpPost("AnalyzeFiles")]
         public async Task<IActionResult> SummarizeFile([FromBody] OpenAISummaryRequest request)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.fileUrl))
+            var urls = new List<string>();
+            bool isBatchRequest = request?.fileUrls != null && request.fileUrls.Count > 0;
+
+            if (isBatchRequest)
+            {
+                urls.AddRange(request!.fileUrls!.Where(u => !string.IsNullOrWhiteSpace(u)));
+            }
+            else if (!string.IsNullOrWhiteSpace(request?.fileUrl))
+            {
+                urls.Add(request.fileUrl);
+            }
+
+            if (urls.Count == 0)
             {
                 return BadRequest("No request url entered!");
             }
 
-            string fileUrl = request.fileUrl;
-            
-            var result = await _fileAnalysisService.AnalyzeFileAsync(fileUrl);
-            return Ok(result);
+            if (isBatchRequest)
+            {
+                var batchResults = await _fileAnalysisService.AnalyzeFilesAsync(urls);
+                return Ok(batchResults);
+            }
+
+            var singleResult = await _fileAnalysisService.AnalyzeFileAsync(urls[0]);
+            return Ok(singleResult);
         }
 
         /// <summary>

@@ -97,7 +97,8 @@ namespace OpenAiChat.Tests
 
             var result = await _controller.Register(new RegisterDto { UserName = "brandNewUser", Password = "secretPassword123" });
 
-            Assert.IsType<OkResult>(result);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
             Assert.NotNull(capturedUser);
             Assert.Equal("brandNewUser", capturedUser.Username);
             Assert.True(BCrypt.Net.BCrypt.Verify("secretPassword123", capturedUser.Password));

@@ -114,7 +114,18 @@ namespace OpenAiChat.Controllers
             try
             {
                 await _unitOfWork.CompleteAsync().ConfigureAwait(false);
-                return Ok();
+
+                var claims = new[]
+                {
+                    new Claim("name", userName),
+                    new Claim("role", "User"),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                };
+
+                var accessToken = _tokenService.GenerateAccessToken(claims);
+                var refreshToken = _tokenService.GenerateRefreshToken();
+
+                return Ok(new { accessToken = accessToken, refreshToken = refreshToken });
             }
             catch (Exception ex)
             {
@@ -145,7 +156,7 @@ namespace OpenAiChat.Controllers
 
                 if (!string.IsNullOrWhiteSpace(googleClientId))
                 {
-                    settings.Audience = new[] { googleClientId };
+                    settings.Audience = new[] { googleClientId.Trim() };
                 }
 
                 payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, settings);

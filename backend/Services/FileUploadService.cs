@@ -1,4 +1,4 @@
-﻿using Amazon.S3;
+using Amazon.S3;
 using Amazon.S3.Model;
 using OpenAiChat.CustomExceptions;
 using OpenAiChat.Models;
@@ -8,6 +8,7 @@ namespace OpenAiChat.Services
 {
     public class FileUploadService : IFileUploadService
     {
+        private static readonly SemaphoreSlim _dbLock = new SemaphoreSlim(1, 1);
         private readonly ILogger<FileAnalysisService> _logger;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
@@ -25,6 +26,19 @@ namespace OpenAiChat.Services
             _configuration = configuration;
         }
 
+        public async Task<List<string>> UploadFilesAsync(List<IFormFile> files)
+        {
+            if (files == null || files.Count == 0)
+            {
+                return new List<string>();
+            }
+
+            var tasks = files.Select(file => UploadFileAsync(file));
+            var urls = await Task.WhenAll(tasks);
+
+            return urls.ToList();
+        }
+
         public async Task<string> UploadFileAsync(IFormFile file)
         {
             string bucketName = _configuration["AWS:S3BucketName"];
@@ -33,20 +47,29 @@ namespace OpenAiChat.Services
                 throw new UserSetupException("Empty bucket name");
             }
 
-            bool isConnectionStringGood = await _unitOfWork.IsDbConnectionStringGood().ConfigureAwait(false);
-
-            if (isConnectionStringGood)
+            await _dbLock.WaitAsync().ConfigureAwait(false);
+            bool isConnectionStringGood = false;
+            try
             {
-                // Check file already loaded before
-                var existingFile = _unitOfWork.FileUploadHistory.Find(f => (
-                    f.LocalFileName == file.FileName &&
-                    f.FileLengthInBytes == file.Length)).FirstOrDefault();
+                isConnectionStringGood = await _unitOfWork.IsDbConnectionStringGood().ConfigureAwait(false);
 
-                if (existingFile != null)
+                if (isConnectionStringGood)
                 {
-                    var loadDate = existingFile.LoadTime.ToString("d");
-                    throw new UserSetupException($"File already loaded on {loadDate}!");
+                    // Check file already loaded before
+                    var existingFile = _unitOfWork.FileUploadHistory.Find(f => (
+                        f.LocalFileName == file.FileName &&
+                        f.FileLengthInBytes == file.Length)).FirstOrDefault();
+
+                    if (existingFile != null)
+                    {
+                        var loadDate = existingFile.LoadTime.ToString("d");
+                        throw new UserSetupException($"File already loaded on {loadDate}!");
+                    }
                 }
+            }
+            finally
+            {
+                _dbLock.Release();
             }
 
             var key = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName); // Use a unique key
@@ -79,9 +102,16 @@ namespace OpenAiChat.Services
                         LoadTime = DateTime.Now
                     };
 
-
-                    _unitOfWork.FileUploadHistory.Add(model);
-                    await _unitOfWork.CompleteAsync().ConfigureAwait(false);
+                    await _dbLock.WaitAsync().ConfigureAwait(false);
+                    try
+                    {
+                        _unitOfWork.FileUploadHistory.Add(model);
+                        await _unitOfWork.CompleteAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        _dbLock.Release();
+                    }
                 }
 
                 return presignedUrl;

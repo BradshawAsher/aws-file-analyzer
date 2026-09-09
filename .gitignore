@@ -11,6 +11,7 @@ node_modules/
 dist/
 build/
 .env
+.env.*
 .copilot-azure/
 
 # Azure Developer CLI local environment (may contain deployment values)

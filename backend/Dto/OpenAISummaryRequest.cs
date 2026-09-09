@@ -1,9 +1,12 @@
-﻿namespace OpenAiChat.Dto
+namespace OpenAiChat.Dto
 {
     public class OpenAISummaryRequest
     {
-        // Property name MUST match the key in your UI Axios payload ("fileUrl")
-        public string fileUrl { get; set; } = string.Empty;
+        // Backward-compatible single file URL
+        public string? fileUrl { get; set; }
+
+        // Multi-file URLs for concurrent analysis
+        public List<string>? fileUrls { get; set; }
     }
 
     public class FileSummaryRequest : OpenAISummaryRequest

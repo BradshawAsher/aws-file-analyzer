@@ -19,15 +19,17 @@
 
 * **Production Web App:** [https://aws-file-analyzer.pages.dev](https://aws-file-analyzer.pages.dev)
 * **Backend API Endpoint:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net](https://app-afa-eycaz6z3q3pp4.azurewebsites.net)
+* **Interactive Swagger UI:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net/swagger](https://app-afa-eycaz6z3q3pp4.azurewebsites.net/swagger)
 * **Health Check:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health](https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health)
 
-**AWS File Analyzer** demonstrates multi-cloud orchestration across **Cloudflare**, **Microsoft Azure**, **Amazon Web Services (AWS)**, and **Google Cloud (Gemini AI)**:
+**AWS File Analyzer** demonstrates enterprise multi-cloud orchestration across **Cloudflare**, **Microsoft Azure**, **Amazon Web Services (AWS)**, and **Google Cloud (Gemini AI)**:
 
 1. **Global Edge Delivery**: React SPA deployed on **Cloudflare Pages** edge network for sub-millisecond static asset delivery and instant SSL.
 2. **Zero-Trust Identity & Secrets**: .NET 8 API running on **Azure App Service Linux** leveraging **System-Assigned Managed Identity** to retrieve cryptographic JWT signing keys and API credentials from **Azure Key Vault** (zero secrets stored in code or repository).
-3. **Secure AWS S3 Storage**: Ingests files into private Amazon S3 buckets and returns short-lived, cryptographically signed **Pre-Signed URLs** (60-min TTL) to ensure least privilege.
-4. **Multimodal Generative AI**: Ingests and summarizes images, PDFs, and text documents using **Google Gemini**, with automatic model fallback hierarchy (`gemini-2.5-flash` -> `gemini-1.5-flash`).
-5. **Cost-Controlled Serverless Database**: Stores user auth, upload history, and cached AI results in **Azure SQL Serverless** configured with a 60-minute auto-pause, resulting in an estimated **\$0/month operating cost**.
+3. **Multi-File Parallel AWS S3 Ingestion**: Ingests multiple files concurrently using `Task.WhenAll` into private Amazon S3 buckets and returns short-lived, cryptographically signed **Pre-Signed URLs** (60-min TTL). Database state is synchronized using concurrency-safe thread locks.
+4. **Concurrent Multimodal Generative AI**: Analyzes batches of images, PDFs, and text documents in parallel using **Google Gemini**, with automatic model fallback hierarchy (`gemini-2.5-flash` -> `gemini-1.5-flash`).
+5. **Seamless Dual Authentication**: Supports email/password registration with instant auto-login token issuance, as well as one-tap **Google OAuth 2.0** with automatic account provisioning.
+6. **Cost-Controlled Serverless Database**: Stores user auth, upload history, and cached AI results in **Azure SQL Serverless** configured with a 60-minute auto-pause, resulting in an estimated **$0/month operating cost**.
 
 ---
 
@@ -130,13 +132,13 @@ flowchart TD
 * `GET /health` - API health check endpoint (returns `{"status":"healthy"}`).
 
 ### Security & Authentication
-* `POST /api/Security/register` - Register a new user with BCrypt-hashed password.
+* `POST /api/Security/register` - Register a new user with BCrypt-hashed password and receive immediate access tokens (auto-login).
 * `POST /api/Security/login` - Authenticate credentials and receive Access & Refresh JWT tokens.
-* `POST /api/Security/google-login` - Authenticate via Google ID Token (OAuth 2.0) and receive application JWT tokens.
+* `POST /api/Security/google-login` - Authenticate via Google ID Token (OAuth 2.0) with automated user registration and JWT token issuance.
 
 ### File & AI Analysis Endpoints
-* `POST /OpenAIAws/AwsFileUpload` - Upload multipart file to S3, persist metadata to DB, and return 60-min pre-signed URL.
-* `POST /OpenAIAws/GeminiSummary` (also `/OpenAISummary`) - Perform AI analysis on uploaded file URL (Image vision, PDF summary, or text summary).
+* `POST /OpenAIAws/AwsFileUpload` (or `/UploadFiles`) - Upload single or multiple multipart files to AWS S3 concurrently using `Task.WhenAll`, persist metadata safely with database serialization, and return 60-min pre-signed URLs.
+* `POST /OpenAIAws/GeminiSummary` (also `/AnalyzeFiles` / `/OpenAISummary`) - Perform parallel AI analysis on uploaded file URLs (Image vision, PDF summary, or text summary).
 * `GET /OpenAIAws/ListS3Files` - List all S3 objects in bucket with generated pre-signed URLs.
 * `GET /OpenAIAws/ListLoadHistory` - Retrieve upload history filtered by date range and file count.
 * `GET /OpenAIAws/ListAnalysisResults` - Query joined upload history and cached AI analysis results.
