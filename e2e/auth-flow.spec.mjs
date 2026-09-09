@@ -22,7 +22,7 @@ test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
     await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
     await expect(page.getByText('short-lived guest session')).toBeVisible();
     await expect(page.getByRole('button', { name: /^Sign in$/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Exit demo/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Exit guest demo/i })).toBeVisible();
   });
 
   test('Login form renders credentials inputs and Google Sign-In button', async ({ page }) => {
