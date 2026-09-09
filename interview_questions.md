@@ -15,10 +15,10 @@ This guide contains the exact talking points, architectural explanations, edge c
 
 ### Q1: Can you walk me through the end-to-end lifecycle of a file upload?
 **Answer**:
-1. **Client Action**: The user selects a file in the React frontend. The client sends a `multipart/form-data` request with an `Authorization: Bearer <JWT>` header to `POST /OpenAIAws/AwsFileUpload`.
+1. **Client Action**: The user selects a file in the React frontend. The client sends a `multipart/form-data` request with an `Authorization: Bearer <JWT>` header to `POST /api/ai/AwsFileUpload`.
 2. **Backend Processing**: `FileUploadService` receives the `IFormFile`, initiates an upload to Amazon S3 via `AmazonS3Client.PutObjectAsync`, and generates a Pre-Signed URL with a 60-minute TTL (`GetPreSignedUrlRequest`).
 3. **Metadata Logging**: File metadata (name, extension, size, load time, presigned URL) is saved to the `FileUploadHistory` table via Entity Framework Core using the Unit of Work pattern.
-4. **Analysis Dispatch**: The client triggers `POST /OpenAIAws/GeminiSummary` (or legacy `/OpenAISummary`) passing the `fileUrl`.
+4. **Analysis Dispatch**: The client triggers `POST /api/ai/GeminiSummary` passing the `fileUrl`; legacy route aliases remain available only for backward compatibility.
 5. **MIME Routing & Cache Check**: `FileAnalysisService` first queries the `FileAnalysisResult` table in Azure SQL. If a record exists (Cache Hit), it returns the cached JSON immediately. If not (Cache Miss), it inspects the HTTP `Content-Type` header and delegates to `ImageService`, `PdfService`, or `TextService`.
 6. **AI Analysis**: For images, Google Gemini (`gemini-3.1-flash-lite`) processes the image data URI. For PDFs, `PdfPig` extracts the text stream and chunks it before calling Gemini.
 7. **Persistence & Playback**: The JSON analysis is saved to Azure SQL and returned to the React frontend, which feeds the summary/caption to `AiVoicePlayer` via the Web Speech API (`SpeechSynthesisUtterance`).
@@ -113,7 +113,7 @@ This guide contains the exact talking points, architectural explanations, edge c
 **Answer**:
 1. **Interactive Geolocation Map**: Plot image landmark coordinates directly onto an interactive Mapbox/Leaflet UI to create an automated travel photo timeline.
 2. **Vector Embeddings & Semantic Search**: Index parsed PDF and text summaries using Gemini Embeddings (`models/gemini-embedding-2`) and store them in a vector database (e.g. pgvector or Azure AI Search) for natural language semantic search across all uploaded files.
-3. **Automated CI/CD**: Add GitHub Actions pipelines for automated linting, security scanning, and unit testing with `xUnit` and LocalStack.
+3. **Connected Photo Workflow**: Import selected photos from Google Photos or OneDrive, then explore a Chrome extension that can send a photo to the analyzer from a supported website and display its caption in a side panel.
 
 ---
 

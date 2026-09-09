@@ -14,6 +14,7 @@ namespace OpenAiChat.Services
         private readonly ITextService _textService;
         private readonly IPdfService _pdfService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IConfiguration _configuration;
 
         public FileAnalysisService(
             IHttpClientFactory httpClientFactory,
@@ -21,7 +22,8 @@ namespace OpenAiChat.Services
             IImageService imageService,
             ITextService textService,
             IPdfService pdfService,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IConfiguration configuration)
         {
             _httpClientFactory = httpClientFactory;
             _logger = logger;
@@ -29,6 +31,7 @@ namespace OpenAiChat.Services
             _textService = textService;
             _pdfService = pdfService;
             _unitOfWork = unitOfWork;
+            _configuration = configuration;
         }
 
         public async Task<List<string>> AnalyzeFilesAsync(List<string> fileUrls)
@@ -46,9 +49,13 @@ namespace OpenAiChat.Services
 
         public async Task<string> AnalyzeFileAsync(string fileUrl)
         {
-            if (!FileUtils.IsFileUrlValid(fileUrl))
+            var bucketName = _configuration["AWS:S3BucketName"];
+            var region = _configuration["AWS:Region"];
+
+            if (!FileUtils.IsFileUrlValid(fileUrl) ||
+                !FileUtils.IsAllowedS3Url(fileUrl, bucketName ?? string.Empty, region ?? string.Empty))
             {
-                throw new InvalidDataException("Invalid/unsupported url entered!");
+                throw new InvalidDataException("Only files from the configured S3 bucket can be analyzed.");
             }
 
             // 1. Download HTML

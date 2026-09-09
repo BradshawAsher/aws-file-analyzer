@@ -33,7 +33,7 @@ const FileUploadAnalyzer = ({ handleLogout, setAnalysisText, cleanAnalysisText }
       // Also append first file as 'file' for backward compatibility
       formData.append("file", files[0]);
 
-      const res = await apiClient.post("/OpenAIAws/AwsFileUpload", formData, {
+      const res = await apiClient.post("/api/ai/AwsFileUpload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -56,7 +56,7 @@ const FileUploadAnalyzer = ({ handleLogout, setAnalysisText, cleanAnalysisText }
     setAnalyzing(true);
     setMessage("");
     try {
-      const res = await apiClient.post("/OpenAIAws/GeminiSummary", {
+      const res = await apiClient.post("/api/ai/GeminiSummary", {
         fileUrls: fileUrls,
         fileUrl: fileUrls[0],
       });

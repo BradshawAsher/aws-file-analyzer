@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import LoginForm from './LoginForm';      // Your existing component
 import RegisterForm from './RegisterForm'; // A new component you will create
 
-function AuthContainer({ onLoginSuccess }) {
+function AuthContainer({ onLoginSuccess, onBack }) {
   // State to toggle between 'login' and 'register' view
   const [currentView, setCurrentView] = useState('login'); 
 
@@ -15,7 +15,14 @@ function AuthContainer({ onLoginSuccess }) {
   };
 
   return (
-    <>
+    <div className="w-full max-w-md">
+      <button
+        type="button"
+        onClick={onBack}
+        className="mb-4 text-sm font-semibold text-slate-600 transition hover:text-blue-700"
+      >
+        ← Back to project overview
+      </button>
       {currentView === 'login' ? (
         // --- Display Login Form ---
         <LoginForm 
@@ -31,7 +38,7 @@ function AuthContainer({ onLoginSuccess }) {
           onSwitchToLogin={switchToLogin} 
         />
       )}
-    </>
+    </div>
   );
 }
 

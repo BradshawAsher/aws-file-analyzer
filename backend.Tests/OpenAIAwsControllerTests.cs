@@ -48,8 +48,16 @@ namespace OpenAiChat.Tests
         [Fact]
         public async Task FileUpload_WithMultipleFiles_UploadsConcurrentlyAndReturnsAllUrls()
         {
-            var file1 = new FormFile(new MemoryStream(Encoding.UTF8.GetBytes("file 1")), 0, 6, "files", "file1.txt");
-            var file2 = new FormFile(new MemoryStream(Encoding.UTF8.GetBytes("file 2")), 0, 6, "files", "file2.txt");
+            var file1 = new FormFile(new MemoryStream(Encoding.UTF8.GetBytes("file 1")), 0, 6, "files", "file1.txt")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/plain"
+            };
+            var file2 = new FormFile(new MemoryStream(Encoding.UTF8.GetBytes("file 2")), 0, 6, "files", "file2.txt")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/plain"
+            };
             var files = new List<IFormFile> { file1, file2 };
 
             var expectedUrls = new List<string> { "https://s3.amazonaws.com/test/file1.txt", "https://s3.amazonaws.com/test/file2.txt" };
@@ -69,6 +77,45 @@ namespace OpenAiChat.Tests
             Assert.Equal(2, countProp);
             Assert.Equal("https://s3.amazonaws.com/test/file1.txt", fileUrlProp);
             Assert.Equal(expectedUrls, fileUrlsProp);
+        }
+
+        [Fact]
+        public async Task FileUpload_WithTooManyFiles_ReturnsBadRequestWithoutUploading()
+        {
+            var files = Enumerable.Range(1, 6)
+                .Select(index => (IFormFile)new FormFile(
+                    new MemoryStream(Encoding.UTF8.GetBytes($"file {index}")),
+                    0,
+                    6,
+                    "files",
+                    $"file{index}.txt")
+                {
+                    Headers = new HeaderDictionary(),
+                    ContentType = "text/plain"
+                })
+                .ToList();
+
+            var result = await _controller.FileUpload(files);
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Upload at most 5 files at a time.", badRequest.Value);
+            _mockUploadService.Verify(service => service.UploadFilesAsync(It.IsAny<List<IFormFile>>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task FileUpload_WithUnsupportedContentType_ReturnsBadRequestWithoutUploading()
+        {
+            var file = new FormFile(new MemoryStream([1, 2, 3]), 0, 3, "files", "archive.zip")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/zip"
+            };
+
+            var result = await _controller.FileUpload([file]);
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Only PNG, JPEG, GIF, plain text, HTML, and PDF files are supported.", badRequest.Value);
+            _mockUploadService.Verify(service => service.UploadFilesAsync(It.IsAny<List<IFormFile>>()), Times.Never);
         }
 
         [Fact]

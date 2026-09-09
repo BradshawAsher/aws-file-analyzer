@@ -57,7 +57,7 @@ The subscription has an **Allowed resource deployment regions** policy. Permitte
 
 | Item | Status |
 |---|---|
-| Azure infrastructure-as-code | Not found |
+| Azure infrastructure-as-code | Generated in `infra/` and successfully deployed with AZD |
 | Dockerfile | Not found; not required for App Service code deployment |
 | AWS S3 | Private bucket `aws-file-analyzer-bd3b69e5` created in `us-east-2` |
 | AWS IAM | Dedicated least-privilege identity `aws-file-analyzer-api` configured |
@@ -68,7 +68,7 @@ The subscription has an **Allowed resource deployment regions** policy. Permitte
 
 **Selected:** Azure Developer CLI (AZD) with Bicep
 
-**Rationale:** The repository has no existing Azure infrastructure. AZD plus Bicep provides repeatable Azure-native infrastructure, environment management, validation, and a straightforward deployment command while leaving Cloudflare and AWS independently managed.
+**Rationale:** AZD plus Bicep provides repeatable Azure-native infrastructure, environment management, validation, and straightforward application deployments while leaving Cloudflare and AWS independently managed.
 
 ---
 
@@ -88,7 +88,7 @@ The subscription has an **Allowed resource deployment regions** policy. Permitte
 | Frontend | Cloudflare Pages | Free plan; configured separately | $0/month |
 | Files | AWS S3 | Existing private bucket; configured separately | Expected pennies at portfolio traffic |
 
-**Estimated combined total:** approximately **$0â€“$0.10/month** at portfolio traffic. Spending risks are Azure Monitor ingestion above its free allowance, unusual Key Vault transaction volume, AWS storage/egress, or changing the SQL free-limit behavior. The plan keeps SQL on `AutoPause` rather than allowing billed overage.
+**Estimated combined total:** approximately **$0-$0.10/month** at portfolio traffic. Spending risks are Azure Monitor ingestion above its free allowance, unusual Key Vault transaction volume, AWS storage/egress, or changing the SQL free-limit behavior. The plan keeps SQL on `AutoPause` rather than allowing billed overage.
 
 ### Security
 
@@ -116,7 +116,7 @@ The Azure Quota CLI was invoked first for each provider. Microsoft.Web exposed o
 | `Microsoft.OperationalInsights/workspaces` | 1 | 1 | No resource-count quota exposed; ingestion service limits apply | Within limits; ARG current usage 0 + Azure Monitor limits |
 | `Microsoft.Insights/components` | 1 | 1 | 100 Application Insights/Log Analytics resources per cross-resource query; ingestion limits apply | Within limits; ARG current usage 0 + Azure Monitor limits |
 
-**Status:** âœ… All planned resources are within available limits. F1 and Azure SQL serverless free-limit behavior are available in West US.
+**Status:** All planned resources are within available limits. F1 and Azure SQL serverless free-limit behavior are available in West US.
 
 ---
 
@@ -166,12 +166,12 @@ The Azure Quota CLI was invoked first for each provider. Microsoft.Web exposed o
 
 ### Phase 4: Deployment
 
-- [ ] Obtain a newly rotated Gemini API key from the user
-- [ ] Deploy approved Azure resources
-- [ ] Apply EF Core migrations and grant the web app database access
-- [ ] Deploy the API and verify `/health`
-- [ ] Configure and deploy Cloudflare Pages
-- [ ] Verify registration, login, S3 upload, and Gemini analysis end to end
+- [x] Store the Gemini API key in Azure Key Vault
+- [x] Deploy approved Azure resources
+- [x] Apply EF Core migrations and grant the web app database access
+- [x] Deploy the API and verify `/health`
+- [x] Configure and deploy Cloudflare Pages
+- [x] Verify registration, login, S3 upload, and Gemini analysis end to end
 
 ---
 
@@ -179,25 +179,24 @@ The Azure Quota CLI was invoked first for each provider. Microsoft.Web exposed o
 
 | Check | Command | Result | Timestamp |
 |---|---|---|---|
-| AZD Installation | zd version | azd 1.33.0 (stable) | 2026-09-09T19:49:37Z |
-| Authentication | zd auth login --check-status | Logged in as mysue@batestech.edu | 2026-09-09T19:50:46Z |
-| Environment Config | zd env get-values | Portfolio env bound to West US & rg-aws-file-analyzer-portfolio | 2026-09-09T19:50:50Z |
-| Bicep Compilation | z bicep build --file infra/main.bicep | Clean compilation with zero errors | 2026-09-09T19:50:57Z |
-| IaC Provision Preview | zd provision --preview --no-prompt | Success: 7 resources planned for creation in 31s | 2026-09-09T19:51:32Z |
+| AZD Installation | `azd version` | azd 1.33.0 (stable) | 2026-09-09T19:49:37Z |
+| Authentication | `azd auth login --check-status` | Logged in as mysue@batestech.edu | 2026-09-09T19:50:46Z |
+| Environment Config | `azd env get-values` | Portfolio env bound to West US and `rg-aws-file-analyzer-portfolio` | 2026-09-09T19:50:50Z |
+| Bicep Compilation | `az bicep build --file infra/main.bicep` | Clean compilation with zero errors | 2026-09-09T19:50:57Z |
+| IaC Provision Preview | `azd provision --preview --no-prompt` | Success: 7 resources planned for creation in 31s | 2026-09-09T19:51:32Z |
 | Backend Build | dotnet build backend | Build succeeded: 0 Warning(s), 0 Error(s) | 2026-09-09T19:54:30Z |
-| Frontend Build | 
-pm --prefix frontend run build | Compiled successfully into production build | 2026-09-09T19:54:52Z |
-| Packaging Validation | zd package --no-prompt | Successfully packaged API service zip in 3s | 2026-09-09T19:51:40Z |
+| Frontend Build | `npm --prefix frontend run build` | Compiled successfully into production build | 2026-09-09T19:54:52Z |
+| Packaging Validation | `azd package --no-prompt` | Successfully packaged API service zip in 3s | 2026-09-09T19:51:40Z |
 | RBAC Role Verification | Review infra/resources.bicep | Key Vault Secrets User (API identity) + Secrets Officer (deployer) verified | 2026-09-09T19:55:09Z |
 
 **Validated by:** azure-validate workflow
 
 ## Role Assignment Verification
 - Status: Verified
-- Identities checked: API App Service system-assigned managed identity (pp-afa-), deployer principal (mysue@batestech.edu)
+- Identities checked: API App Service system-assigned managed identity, deployer principal (`mysue@batestech.edu`)
 - Roles confirmed:
   - Key Vault Secrets User (4633458b-17de-408a-b874-0445c86b69e6) assigned to App Service managed identity scoped to Key Vault.
-  - Key Vault Secrets Officer (86a8fe4-44ce-4948-aee5-eccb2c155cd7) assigned to deployer principal scoped to Key Vault.
+  - Key Vault Secrets Officer (`b86a8fe4-44ce-4948-aee5-eccb2c155cd7`) assigned to deployer principal scoped to Key Vault.
   - Azure SQL db_datareader and db_datawriter assigned via post-provision hook script (scripts/grant-sql-access.ps1) using Entra authentication.
 - Issues: None. Least privilege strictly maintained.
 
@@ -215,7 +214,8 @@ pm --prefix frontend run build | Compiled successfully into production build | 2
 | `scripts/grant-sql-access.ps1` / `.sh` | Passwordless SQL data-plane grants | Generated from Azure recipe |
 | `scripts/configure-app-secrets.ps1` | Copies local user secrets to Key Vault without printing them | Generated |
 | `scripts/apply-database-migrations.ps1` | Applies existing EF Core migrations using Entra authentication | Generated |
-| `.github/workflows/azure-api.yml` | Optional API CI/CD after first successful deployment | Deferred until deployment succeeds |
+| `.github/workflows/azure-api.yml` | Optional API deployment workflow | Deferred; application updates currently deploy through AZD |
+| `.github/workflows/regression.yml` | Backend/frontend regression suite and public live smoke checks | Generated |
 
 ---
 
@@ -234,11 +234,14 @@ pm --prefix frontend run build | Compiled successfully into production build | 2
  
 ---
  
-## 11. Next Steps: Cloudflare Pages Deployment
- 
-1. Build frontend bundle: `npm --prefix frontend run build` (compiled successfully with `REACT_APP_API_BASE_URL=https://app-afa-eycaz6z3q3pp4.azurewebsites.net`).
-2. Deploy frontend to Cloudflare Pages (via `npx wrangler pages deploy frontend/build` or GitHub Cloudflare Pages integration).
-3. Update `Cors__AllowedOrigins__0` on App Service to match the Cloudflare Pages custom or `*.pages.dev` domain.
+## 11. Live Endpoints and Update Process
+
+- Frontend: `https://aws-file-analyzer.pages.dev/`
+- API: `https://app-afa-eycaz6z3q3pp4.azurewebsites.net/`
+- Swagger: `https://app-afa-eycaz6z3q3pp4.azurewebsites.net/swagger/index.html`
+- Health: `https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health`
+
+Application-only API updates use `azd deploy api --no-prompt`. Frontend updates are built with the production API base URL and deployed to the existing `aws-file-analyzer` Cloudflare Pages project with Wrangler. Infrastructure changes still require the full validated AZD provisioning workflow.
 
 
 

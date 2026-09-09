@@ -52,7 +52,7 @@ AI output was made structured and predictable through metadata models, strict JS
 **Dates:** November 10, 2025–January 19, 2026  
 **Representative commits:** `8431f6e`–`03c453f`
 
-AI analysis logic was extracted from controllers into `FileAnalysisService`, redundant frontend authentication re-renders were removed, and database-backed caching was added to avoid repeating OpenAI calls for previously analyzed files. S3 upload and metadata persistence were then encapsulated in `FileUploadService`.
+AI analysis logic was extracted from controllers into `FileAnalysisService`, redundant frontend authentication re-renders were removed, and database-backed caching was added to avoid repeating AI calls for previously analyzed files. S3 upload and metadata persistence were then encapsulated in `FileUploadService`.
 
 **Outcome:** The system became easier to maintain, reduced unnecessary AI spend and latency, and gave controllers clearer responsibilities.
 
@@ -65,18 +65,29 @@ Global exception handling was added for upload, analysis, and GET flows so failu
 
 **Outcome:** The application gained a consistent error boundary and a documented technical baseline for onboarding, review, and future work.
 
+## Phase 8: Multi-cloud deployment and production hardening
+
+**Date:** September 9, 2026
+
+The AI integration was migrated to Google Gemini with a configurable model fallback hierarchy. The React 19 frontend was deployed to Cloudflare Pages, while the .NET 8 API, managed secrets, monitoring, and relational persistence were deployed across Azure App Service, Key Vault, Application Insights, and Azure SQL; private object storage remained in AWS S3.
+
+A public guest landing page was added so recruiters can understand and explore the architecture without creating an account. The authenticated analyzer remains protected behind JWT login. Upload limits, MIME checks, API rate limits, expired-token handling, S3 URL allowlisting, canonical `/api/ai` Swagger routes, and a dedicated GitHub Actions regression workflow were also added.
+
+**Outcome:** The project became a live, recruiter-friendly multi-cloud portfolio application with safer production boundaries and repeatable regression checks.
+
 ## Current state
 
 The project currently combines:
 
-- React authentication and file-analysis workflows
+- Public guest overview plus authenticated React 19 file-analysis workflows
 - An ASP.NET Core 8 API
 - AWS S3 file storage
 - Azure SQL and EF Core persistence
 - JWT authentication with BCrypt password hashing
-- Structured OpenAI analysis for images and text-based files
+- Structured Google Gemini analysis with model fallback for images and text-based files
 - PDF extraction and chunked summarization
 - Cached analysis results
-- Centralized exception handling
+- Centralized exception handling, rate limiting, upload validation, and S3 URL allowlisting
+- GitHub Actions regression tests and live public smoke checks
 
-Future work should be tracked in the roadmap in [`README.md`](README.md), while this document should be updated when a new architectural phase is completed or an existing phase changes materially.
+Future work is tracked in [`future_work.md`](future_work.md), while this document should be updated when a new architectural phase is completed or an existing phase changes materially.

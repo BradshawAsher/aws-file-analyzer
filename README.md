@@ -5,7 +5,7 @@
 [![Live Demo](https://img.shields.io/badge/Live_Demo-aws--file--analyzer.pages.dev-F38020?style=for-the-badge&logo=cloudflarepages&logoColor=white)](https://aws-file-analyzer.pages.dev)
 [![API Status](https://img.shields.io/badge/API_Health-200_OK-0078D4?style=for-the-badge&logo=azuredevops&logoColor=white)](https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
 [![Cloudflare Pages](https://img.shields.io/badge/Cloudflare-Pages-F38020?style=flat&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com/)
 [![Azure App Service](https://img.shields.io/badge/Azure-App_Service_F1-0089D6?style=flat&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
 [![Azure Key Vault](https://img.shields.io/badge/Azure-Key_Vault_RBAC-0078D4?style=flat&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
@@ -27,7 +27,7 @@
 1. **Global Edge Delivery**: React SPA deployed on **Cloudflare Pages** edge network for sub-millisecond static asset delivery and instant SSL.
 2. **Zero-Trust Identity & Secrets**: .NET 8 API running on **Azure App Service Linux** leveraging **System-Assigned Managed Identity** to retrieve cryptographic JWT signing keys and API credentials from **Azure Key Vault** (zero secrets stored in code or repository).
 3. **Multi-File Parallel AWS S3 Ingestion**: Ingests multiple files concurrently using `Task.WhenAll` into private Amazon S3 buckets and returns short-lived, cryptographically signed **Pre-Signed URLs** (60-min TTL). Database state is synchronized using concurrency-safe thread locks.
-4. **Concurrent Multimodal Generative AI**: Analyzes batches of images, PDFs, and text documents in parallel using **Google Gemini**, with automatic model fallback hierarchy (`gemini-2.5-flash` -> `gemini-1.5-flash`).
+4. **Concurrent Multimodal Generative AI**: Analyzes batches of images, PDFs, and text documents in parallel using **Google Gemini**, with a cost-first fallback hierarchy beginning with `gemini-3.1-flash-lite`.
 5. **Seamless Dual Authentication**: Supports email/password registration with instant auto-login token issuance, as well as one-tap **Google OAuth 2.0** with automatic account provisioning.
 6. **Cost-Controlled Serverless Database**: Stores user auth, upload history, and cached AI results in **Azure SQL Serverless** configured with a 60-minute auto-pause, resulting in an estimated **$0/month operating cost**.
 
@@ -38,7 +38,7 @@
 ```mermaid
 flowchart TD
     subgraph Edge ["Global Edge Tier (Cloudflare)"]
-        CF["Cloudflare Pages (React 18 SPA)"]
+        CF["Cloudflare Pages (React 19 SPA)"]
         BrowserAuth["JWT Auth & LocalStorage"]
         Voice["Web Speech API Narration"]
     end
@@ -121,7 +121,7 @@ flowchart TD
 | **AI / Multimodal** | Google Gemini Multimodal Vision & LLM | Document summarization, image vision, and fallback hierarchy |
 | **Document Processing**| `UglyToad.PdfPig` | High-performance PDF stream text extraction |
 | **Security & Auth** | JWT, `BCrypt.Net-Next`, Google OAuth 2.0 | Dual authentication (standard email/password + Google Sign-In) |
-| **Frontend Framework**| React 18, Axios, Tailwind CSS v3 | Responsive single-page application and auth state management |
+| **Frontend Framework**| React 19, Axios, Tailwind CSS v3 | Responsive single-page application and auth state management |
 | **Testing** | xUnit, React Testing Library, Playwright | Unit, integration, and end-to-end smoke testing |
 
 ---
@@ -137,12 +137,14 @@ flowchart TD
 * `POST /api/Security/google-login` - Authenticate via Google ID Token (OAuth 2.0) with automated user registration and JWT token issuance.
 
 ### File & AI Analysis Endpoints
-* `POST /OpenAIAws/AwsFileUpload` (or `/UploadFiles`) - Upload single or multiple multipart files to AWS S3 concurrently using `Task.WhenAll`, persist metadata safely with database serialization, and return 60-min pre-signed URLs.
-* `POST /OpenAIAws/GeminiSummary` (also `/AnalyzeFiles` / `/OpenAISummary`) - Perform parallel AI analysis on uploaded file URLs (Image vision, PDF summary, or text summary).
-* `GET /OpenAIAws/ListS3Files` - List all S3 objects in bucket with generated pre-signed URLs.
-* `GET /OpenAIAws/ListLoadHistory` - Retrieve upload history filtered by date range and file count.
-* `GET /OpenAIAws/ListAnalysisResults` - Query joined upload history and cached AI analysis results.
-* `POST /OpenAIAws/GeminiChat` (also `/OpenAIChat`) - General text chat completion endpoint.
+* `POST /api/ai/AwsFileUpload` (or `/api/ai/UploadFiles`) - Upload up to five supported multipart files to AWS S3 concurrently, persist metadata safely, and return 60-minute pre-signed URLs.
+* `POST /api/ai/GeminiSummary` (also `/api/ai/AnalyzeFiles`) - Perform parallel AI analysis on uploaded file URLs (image vision, PDF summary, or text summary).
+* `GET /api/ai/ListS3Files` - List all S3 objects in the configured bucket with generated pre-signed URLs.
+* `GET /api/ai/ListLoadHistory` - Retrieve upload history filtered by date range and file count.
+* `GET /api/ai/ListAnalysisResults` - Query joined upload history and cached AI analysis results.
+* `POST /api/ai/GeminiChat` - General text chat completion endpoint.
+
+Legacy `/OpenAIAws` and `/GeminiAws` route prefixes remain available for backward compatibility but are hidden from Swagger so the public API contract stays focused on `/api/ai`.
 
 ---
 
@@ -207,7 +209,11 @@ npm start
 ---
 
 ## 🔮 Roadmap
-- [ ] AWS Lambda trigger for asynchronous background processing.
-- [ ] Visual Photo Album & Map View plotted from extracted image GPS/landmark coordinates.
-- [ ] Vector embeddings with pgvector / Azure AI Search for semantic document querying.
-- [ ] Comprehensive unit and integration test suite with `xUnit` and `boto3`/AWS localstack mocking.
+
+See [`future_work.md`](future_work.md) for the detailed product and engineering roadmap, including photo collections, Google Photos and OneDrive integrations, and a possible Chrome extension.
+
+- [ ] Visual photo collections and a map view based on extracted image metadata.
+- [ ] Connected cloud-photo imports and provider-supported metadata write-back.
+- [ ] Browser extension actions for analyzing photos from supported websites.
+- [ ] Vector embeddings with pgvector or Azure AI Search for semantic querying.
+- [ ] Background processing for larger files and sustained traffic.

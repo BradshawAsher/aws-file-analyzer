@@ -2,10 +2,13 @@ import React, { useState, useEffect } from "react";
 import FileUploadAnalyzer from "./FileUploadAnalyze";
 import AuthContainer from "./AuthContainer";
 import AiVoicePlayer from "./AiVoicePlayer";
+import GuestLanding from "./GuestLanding";
+import { isJwtUsable } from "./tokenUtils";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isCheckingToken, setIsCheckingToken] = useState(true); // New state for initial load
+  const [isCheckingToken, setIsCheckingToken] = useState(true);
+  const [currentView, setCurrentView] = useState("home");
   const [aiAnalysisText, setAiAnalysisText] = useState("");
 
   const setAnalysisText = (analysisText) => {
@@ -20,10 +23,11 @@ export default function App() {
   useEffect(() => {
     // Check if a token exists in local storage when the app first loads
     const token = localStorage.getItem('authToken');
-    if (token) {
-      // Optionally: You should also validate this token against your backend
-      // For simplicity, we assume if a token exists, the user is logged in
+    if (isJwtUsable(token)) {
       setIsLoggedIn(true);
+      setCurrentView("analyzer");
+    } else if (token) {
+      localStorage.removeItem('authToken');
     }
     setIsCheckingToken(false); // Done checking
     cleanAnalysisText();
@@ -32,6 +36,7 @@ export default function App() {
   // Handler passed to the LoginForm
   const handleSuccessfulLogin = () => {
     setIsLoggedIn(true);
+    setCurrentView("analyzer");
     cleanAnalysisText();
   };
 
@@ -39,6 +44,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('authToken'); // Clear the stored token
     setIsLoggedIn(false);
+    setCurrentView("home");
     cleanAnalysisText();
   };
 
@@ -47,10 +53,9 @@ export default function App() {
       return <div>Loading Application...</div>;
   }
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
-      {/* Conditional Rendering: Show UI only if logged in */}
-      {isLoggedIn ? (
+  if (currentView === "analyzer" && isLoggedIn) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-6">
         <>
         <FileUploadAnalyzer
           handleLogout={handleLogout}
@@ -59,9 +64,20 @@ export default function App() {
         {aiAnalysisText &&
           <AiVoicePlayer analysisText={aiAnalysisText}/>}
         </>
-      ) : (
-        <AuthContainer onLoginSuccess={handleSuccessfulLogin} />
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  if (currentView === "auth") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 p-6">
+        <AuthContainer
+          onLoginSuccess={handleSuccessfulLogin}
+          onBack={() => setCurrentView("home")}
+        />
+      </div>
+    );
+  }
+
+  return <GuestLanding onLogin={() => setCurrentView("auth")} />;
 }

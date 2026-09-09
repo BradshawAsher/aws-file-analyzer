@@ -10,7 +10,7 @@
 
 ```mermaid
 flowchart TB
-    subgraph ClientLayer ["Client Presentation Tier (React 18 SPA)"]
+    subgraph ClientLayer ["Client Presentation Tier (React 19 SPA)"]
         UI["React Web Application (Tailwind CSS)"]
         AxiosClient["Axios HTTP Client (Bearer JWT Interceptor)"]
         WebSpeech["Web Speech API (SpeechSynthesis Engine)"]
@@ -92,8 +92,9 @@ flowchart TB
 ## 3. Component Breakdown & Responsibilities
 
 ### 3.1 Presentation Layer (Frontend)
-* **Framework**: React 18, Tailwind CSS v3, Axios.
+* **Framework**: React 19, Tailwind CSS v3, Axios.
 * **Responsibilities**:
+  * `GuestLanding.js`: Presents a public, read-only project overview with sample analysis and links to sign in or inspect Swagger.
   * `LoginForm.js` / `RegisterForm.js`: Captures user credentials and acquires JWT token.
   * `FileUploadAnalyze.js`: Dispatches multipart uploads and triggers file analysis.
   * `AiVoicePlayer.js`: Wraps browser `window.speechSynthesis` and `SpeechSynthesisUtterance` to read AI-generated summaries aloud.
@@ -102,13 +103,13 @@ flowchart TB
 * **`SecurityController`**:
   * `POST /api/Security/register`: Salted password hashing via `BCrypt.Net.BCrypt.HashPassword`.
   * `POST /api/Security/login`: Verifies passwords via `BCrypt.Net.BCrypt.Verify` and issues signed HMAC-SHA256 JWT access and refresh tokens.
-* **`OpenAIAwsController`**:
-  * `POST /OpenAIAws/AwsFileUpload`: Receives `IFormFile`, pushes to S3, returns generated Pre-Signed URL.
-  * `POST /OpenAIAws/GeminiSummary` (also `/OpenAISummary`): Inspects URL, checks SQL cache, delegates to analyzer service, returns structured JSON.
-  * `GET /OpenAIAws/ListS3Files`: Lists objects in S3 bucket with renewed pre-signed URLs.
-  * `GET /OpenAIAws/ListLoadHistory`: Queries DB for uploaded files in the last $N$ days.
-  * `GET /OpenAIAws/ListAnalysisResults`: Joins `FileUploadHistory` with `FileAnalysisResult`.
-  * `POST /OpenAIAws/GeminiChat` (also `/OpenAIChat`): General chat completion endpoint.
+* **`OpenAIAwsController`** (canonical Swagger prefix `/api/ai`; legacy prefixes retained for compatibility):
+  * `POST /api/ai/AwsFileUpload`: Validates up to five supported files, pushes them to S3, and returns generated pre-signed URLs.
+  * `POST /api/ai/GeminiSummary`: Validates configured-bucket URLs, checks the SQL cache, delegates to the analyzer service, and returns structured JSON.
+  * `GET /api/ai/ListS3Files`: Lists objects in S3 with renewed pre-signed URLs.
+  * `GET /api/ai/ListLoadHistory`: Queries uploads from the last $N$ days.
+  * `GET /api/ai/ListAnalysisResults`: Joins `FileUploadHistory` with `FileAnalysisResult`.
+  * `POST /api/ai/GeminiChat`: Provides general text completion through the configured Gemini fallback chain.
 
 ### 3.3 Domain Services & AI Pipelines
 * **`FileUploadService`**: Manages AWS S3 `PutObjectAsync` and creates 60-minute pre-signed URLs via `GetPreSignedUrlRequest`.

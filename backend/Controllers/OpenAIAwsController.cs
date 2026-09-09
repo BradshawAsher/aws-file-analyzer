@@ -2,6 +2,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using OpenAI.Chat;
 using OpenAiChat.Dto;
@@ -15,8 +16,21 @@ namespace OpenAiChat.Controllers
     [Route("GeminiAws")]
     [Route("api/ai")]
     [Authorize]
+    [EnableRateLimiting("ai")]
     public class OpenAIAwsController : ControllerBase
     {
+        private const int MaxFileCount = 5;
+        private const long MaxFileSizeBytes = 5 * 1024 * 1024;
+        private static readonly HashSet<string> AllowedUploadTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "text/plain",
+            "text/html",
+            "application/pdf"
+        };
+
         private readonly ILogger<OpenAIAwsController> _logger;
         private readonly IGeminiChatClient _chatClient;
         private readonly IAmazonS3 _s3Client;
@@ -191,6 +205,21 @@ namespace OpenAiChat.Controllers
             if (files == null || files.Count == 0)
             {
                 return BadRequest("File is empty or not provided.");
+            }
+
+            if (files.Count > MaxFileCount)
+            {
+                return BadRequest($"Upload at most {MaxFileCount} files at a time.");
+            }
+
+            if (files.Any(file => file.Length <= 0 || file.Length > MaxFileSizeBytes))
+            {
+                return BadRequest("Each file must be between 1 byte and 5 MB.");
+            }
+
+            if (files.Any(file => !AllowedUploadTypes.Contains(file.ContentType)))
+            {
+                return BadRequest("Only PNG, JPEG, GIF, plain text, HTML, and PDF files are supported.");
             }
 
             var presignedUrls = await _fileUploadService.UploadFilesAsync(files);

@@ -1,5 +1,6 @@
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using OpenAiChat.Dto;
 using OpenAiChat.Models;
@@ -12,6 +13,7 @@ namespace OpenAiChat.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [EnableRateLimiting("auth")]
     public class SecurityController : ControllerBase
     {
         private readonly ITokenService _tokenService;
