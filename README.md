@@ -18,6 +18,7 @@
 ## 📌 Live Demo & Overview
 
 * **Production Web App:** [https://aws-file-analyzer.pages.dev](https://aws-file-analyzer.pages.dev)
+* **Git-Connected Cloudflare Worker:** [https://aws-file-analyzer.bradshin231.workers.dev](https://aws-file-analyzer.bradshin231.workers.dev)
 * **Backend API Endpoint:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net](https://app-afa-eycaz6z3q3pp4.azurewebsites.net)
 * **Interactive Swagger UI:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net/swagger](https://app-afa-eycaz6z3q3pp4.azurewebsites.net/swagger)
 * **Health Check:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health](https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health)
@@ -122,7 +123,7 @@ flowchart TD
 | **AI / Multimodal** | Google Gemini Multimodal Vision & LLM | Document summarization, image vision, and fallback hierarchy |
 | **Document Processing**| `UglyToad.PdfPig` | High-performance PDF stream text extraction |
 | **Security & Auth** | JWT, `BCrypt.Net-Next`, Google OAuth 2.0 | Dual authentication (standard email/password + Google Sign-In) |
-| **Frontend Framework**| React 19, Axios, Tailwind CSS v3 | Responsive single-page application and auth state management |
+| **Frontend Framework**| React 19, Vite 8, Axios, Tailwind CSS v3 | Responsive single-page application, fast builds, and auth state management |
 | **Testing** | xUnit, React Testing Library, Playwright | Unit, integration, and end-to-end smoke testing |
 
 ---
@@ -204,8 +205,8 @@ cd frontend
 # Install dependencies
 npm install
 
-# Start development server (runs on http://localhost:3000)
-npm start
+# Start the Vite development server (runs on http://localhost:5173)
+npm run dev
 ```
 
 ---
@@ -219,3 +220,9 @@ See [`future_work.md`](future_work.md) for the detailed product and engineering 
 - [ ] Browser extension actions for analyzing photos from supported websites.
 - [ ] Vector embeddings with pgvector or Azure AI Search for semantic querying.
 - [ ] Background processing for larger files and sustained traffic.
+
+## 🚢 Deployment Automation
+
+Every push to `main` runs the regression workflow. A successful push then deploys the .NET API to Azure App Service through secretless GitHub OIDC. Cloudflare Workers Builds independently builds and deploys the Vite frontend from the same Git commit.
+
+The established `aws-file-analyzer.pages.dev` project remains a separate direct-upload deployment. Its GitHub deployment job is prepared but disabled until the repository has a scoped `CLOUDFLARE_API_TOKEN`; enable it by setting the `PAGES_DEPLOY_ENABLED` repository variable to `true` after adding that secret.

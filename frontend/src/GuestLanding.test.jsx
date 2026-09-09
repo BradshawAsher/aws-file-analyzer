@@ -4,8 +4,8 @@ import GuestLanding from "./GuestLanding";
 
 describe("GuestLanding", () => {
   test("lets guests explore the project and open authentication", () => {
-    const onLogin = jest.fn();
-    const onTryGuest = jest.fn();
+    const onLogin = vi.fn();
+    const onTryGuest = vi.fn();
     render(<GuestLanding onLogin={onLogin} onTryGuest={onTryGuest} />);
 
     expect(screen.getByRole("heading", { name: /Analyze files across four cloud platforms/i })).toBeInTheDocument();
@@ -22,7 +22,7 @@ describe("GuestLanding", () => {
   });
 
   test("switches the interactive sample", () => {
-    render(<GuestLanding onLogin={jest.fn()} onTryGuest={jest.fn()} />);
+    render(<GuestLanding onLogin={vi.fn()} onTryGuest={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Document" }));
     expect(screen.getByText("research-notes.pdf")).toBeInTheDocument();

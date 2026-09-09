@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.47.16.16243",
-      "templateHash": "5808130311970214831"
+      "templateHash": "10711069735369444695"
     }
   },
   "parameters": {
@@ -121,7 +121,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.47.16.16243",
-              "templateHash": "5148526433915864773"
+              "templateHash": "15667783965316364335"
             }
           },
           "parameters": {
@@ -148,6 +148,10 @@
             },
             "cloudflareAllowedOrigin": {
               "type": "string"
+            },
+            "cloudflareWorkerAllowedOrigin": {
+              "type": "string",
+              "defaultValue": "https://aws-file-analyzer.bradshin231.workers.dev"
             },
             "deployerIpAddress": {
               "type": "string",
@@ -347,6 +351,7 @@
                   "healthCheckPath": "/health",
                   "http20Enabled": true,
                   "linuxFxVersion": "DOTNETCORE|8.0",
+                  "appCommandLine": "dotnet OpenAiChat.dll",
                   "minTlsVersion": "1.2",
                   "scmMinTlsVersion": "1.2",
                   "appSettings": [
@@ -357,10 +362,6 @@
                     {
                       "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
                       "value": "false"
-                    },
-                    {
-                      "name": "WEBSITE_RUN_FROM_PACKAGE",
-                      "value": "1"
                     },
                     {
                       "name": "WEBSITE_HEALTHCHECK_MAXPINGFAILURES",
@@ -381,6 +382,10 @@
                     {
                       "name": "Cors__AllowedOrigins__0",
                       "value": "[parameters('cloudflareAllowedOrigin')]"
+                    },
+                    {
+                      "name": "Cors__AllowedOrigins__1",
+                      "value": "[parameters('cloudflareWorkerAllowedOrigin')]"
                     },
                     {
                       "name": "Gemini__ApiKey",

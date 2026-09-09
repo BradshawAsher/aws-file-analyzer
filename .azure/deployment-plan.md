@@ -48,7 +48,7 @@ The subscription has an **Allowed resource deployment regions** policy. Permitte
 
 | Component | Depends on | Integration |
 |---|---|---|
-| React frontend | ASP.NET API | HTTPS with configurable `REACT_APP_API_BASE_URL` |
+| React frontend | ASP.NET API | HTTPS with configurable `VITE_API_BASE_URL` |
 | ASP.NET API | Azure SQL | EF Core with managed identity / Microsoft Entra authentication |
 | ASP.NET API | AWS S3 | Restricted IAM access key stored in Azure Key Vault |
 | ASP.NET API | Google Gemini | API key stored in Azure Key Vault |
@@ -241,7 +241,7 @@ The Azure Quota CLI was invoked first for each provider. Microsoft.Web exposed o
 - Swagger: `https://app-afa-eycaz6z3q3pp4.azurewebsites.net/swagger/index.html`
 - Health: `https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health`
 
-Application-only API updates use `azd deploy api --no-prompt`. Frontend updates are built with the production API base URL and deployed to the existing `aws-file-analyzer` Cloudflare Pages project with Wrangler. Infrastructure changes still require the full validated AZD provisioning workflow.
+Application-only API updates use `azd deploy api --no-prompt`. The Git-connected Cloudflare Worker build deploys the Vite frontend automatically, while the established Pages URL can be updated with `npm run deploy:pages`. Infrastructure changes still require the full validated AZD provisioning workflow.
 
 
 

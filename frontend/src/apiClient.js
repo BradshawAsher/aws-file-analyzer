@@ -1,8 +1,11 @@
 import axios from 'axios';
 
-const configuredBaseUrl = process.env.REACT_APP_API_BASE_URL?.trim();
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+const defaultBaseUrl = import.meta.env.PROD
+  ? 'https://app-afa-eycaz6z3q3pp4.azurewebsites.net'
+  : 'https://localhost:5000';
 
-export const API_BASE_URL = (configuredBaseUrl || 'https://localhost:5000')
+export const API_BASE_URL = (configuredBaseUrl || defaultBaseUrl)
   .replace(/\/+$/, '');
 
 const apiClient = axios.create({

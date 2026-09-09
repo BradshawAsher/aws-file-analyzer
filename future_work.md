@@ -50,7 +50,7 @@ Explore a Chrome extension that brings analysis into supported photo websites wi
 
 ## Engineering Improvements
 
-- Migrate the frontend from Create React App to Vite to reduce deprecated tooling and build-time dependency warnings.
+- Add explicit user ownership to upload and analysis records, then support claiming a guest session after registration. Local storage can preserve a guest-facing draft history, but the server must validate ownership before attaching cloud records to an account.
 - Add API integration tests for authentication, authorization, upload validation, and database persistence.
 - Add safe cleanup for test data and S3 objects created by authenticated end-to-end tests.
 - Add OpenTelemetry traces spanning the Cloudflare frontend, Azure API, Azure SQL, AWS S3, and Gemini calls.
@@ -60,6 +60,7 @@ Explore a Chrome extension that brings analysis into supported photo websites wi
 
 ## Deployment Improvements
 
+- Consolidate the duplicate Cloudflare Pages and Worker frontends behind one custom production domain after choosing the long-term Cloudflare hosting model.
 - Add preview deployments for pull requests with isolated test configuration.
 - Add a custom domain and production-grade App Service tier if the project receives sustained traffic.
 - Restrict Azure SQL networking with private connectivity when moving beyond the free portfolio architecture.

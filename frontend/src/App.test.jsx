@@ -3,11 +3,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import apiClient from "./apiClient";
 
-jest.mock("./apiClient");
+vi.mock("./apiClient");
 
 describe("App guest session", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
   });
 

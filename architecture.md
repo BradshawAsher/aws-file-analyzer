@@ -92,7 +92,7 @@ flowchart TB
 ## 3. Component Breakdown & Responsibilities
 
 ### 3.1 Presentation Layer (Frontend)
-* **Framework**: React 19, Tailwind CSS v3, Axios.
+* **Framework**: React 19 with Vite 8, Tailwind CSS v3, Axios.
 * **Responsibilities**:
   * `GuestLanding.js`: Presents a public project overview with sample analysis and starts a restricted, short-lived guest session for the live analyzer.
   * `LoginForm.js` / `RegisterForm.js`: Captures user credentials and acquires JWT token.
@@ -167,6 +167,7 @@ Guest JWTs can call only the upload and analysis operations. Bucket listings, ac
 
 ### 6.1 Topology & Endpoints
 * **Frontend CDN**: [https://aws-file-analyzer.pages.dev](https://aws-file-analyzer.pages.dev) (Cloudflare Pages)
+* **Git-connected frontend deployment**: [https://aws-file-analyzer.bradshin231.workers.dev](https://aws-file-analyzer.bradshin231.workers.dev) (Cloudflare Worker static assets)
 * **Backend API**: [https://app-afa-eycaz6z3q3pp4.azurewebsites.net](https://app-afa-eycaz6z3q3pp4.azurewebsites.net) (Azure App Service Linux F1)
 * **Database**: `sql-afa-eycaz6z3q3pp4.database.windows.net` / `FileAnalyzer` (Azure SQL Serverless `GP_S_Gen5_1`)
 * **Key Vault**: `kv-afa-eycaz6z3q3pp4.vault.azure.net` (Azure Key Vault with RBAC)

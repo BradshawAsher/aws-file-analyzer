@@ -1,0 +1,98 @@
+name: Deploy Production
+
+on:
+  workflow_run:
+    workflows: [Regression Tests]
+    types: [completed]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production
+  cancel-in-progress: true
+
+jobs:
+  deploy-azure-api:
+    name: Azure App Service
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publish API
+        run: dotnet publish backend/OpenAiChat.csproj --configuration Release --output backend/publish
+
+      - name: Deploy API
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-afa-eycaz6z3q3pp4
+          package: backend/publish
+
+      - name: Verify API health
+        shell: bash
+        run: |
+          for attempt in {1..12}; do
+            if curl --fail --silent --show-error \
+              https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health; then
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
+
+  deploy-cloudflare-pages:
+    name: Cloudflare Pages
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      vars.PAGES_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Vite frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://app-afa-eycaz6z3q3pp4.azurewebsites.net
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy established Pages URL
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: frontend
+          command: pages deploy dist --project-name aws-file-analyzer --branch main

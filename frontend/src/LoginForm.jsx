@@ -11,7 +11,8 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }) => {
     const [error, setError] = useState('');
     const [isGsiLoaded, setIsGsiLoaded] = useState(false);
     const googleButtonRef = useRef(null);
-    const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+        '911697501509-pvefn5d210oe6so4a2j9sj3ghrqcb9mg.apps.googleusercontent.com';
 
     const handleGoogleResponse = useCallback(async (response) => {
         if (!response?.credential) return;
@@ -105,7 +106,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }) => {
         if (window.google?.accounts?.id && googleClientId) {
             window.google.accounts.id.prompt();
         } else {
-            setError('To enable Google Sign-In, configure REACT_APP_GOOGLE_CLIENT_ID in your deployment settings.');
+            setError('To enable Google Sign-In, configure VITE_GOOGLE_CLIENT_ID in your deployment settings.');
         }
     };
 

@@ -6,6 +6,7 @@ param principalId string
 param principalName string
 param tenantId string
 param cloudflareAllowedOrigin string
+param cloudflareWorkerAllowedOrigin string = 'https://aws-file-analyzer.bradshin231.workers.dev'
 param deployerIpAddress string = ''
 
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -209,6 +210,10 @@ resource api 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'Cors__AllowedOrigins__0'
           value: cloudflareAllowedOrigin
+        }
+        {
+          name: 'Cors__AllowedOrigins__1'
+          value: cloudflareWorkerAllowedOrigin
         }
         {
           name: 'Gemini__ApiKey'

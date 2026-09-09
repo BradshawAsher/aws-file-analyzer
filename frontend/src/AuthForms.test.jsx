@@ -4,16 +4,16 @@ import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
 import apiClient from './apiClient';
 
-jest.mock('./apiClient');
+vi.mock('./apiClient');
 
 describe('LoginForm', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
   });
 
   test('renders login form elements', () => {
-    render(<LoginForm onLoginSuccess={jest.fn()} onSwitchToRegister={jest.fn()} />);
+    render(<LoginForm onLoginSuccess={vi.fn()} onSwitchToRegister={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: /Log In/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/Username/i)).toBeInTheDocument();
@@ -22,13 +22,13 @@ describe('LoginForm', () => {
   });
 
   test('successfully submits login and stores access token', async () => {
-    const mockOnLoginSuccess = jest.fn();
+    const mockOnLoginSuccess = vi.fn();
     apiClient.post.mockResolvedValueOnce({
       status: 200,
       data: { accessToken: 'mock-jwt-token' }
     });
 
-    render(<LoginForm onLoginSuccess={mockOnLoginSuccess} onSwitchToRegister={jest.fn()} />);
+    render(<LoginForm onLoginSuccess={mockOnLoginSuccess} onSwitchToRegister={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText(/Username/i), { target: { value: 'testuser' } });
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'password123' } });
@@ -49,7 +49,7 @@ describe('LoginForm', () => {
       response: { data: { message: 'Invalid username or password.' } }
     });
 
-    render(<LoginForm onLoginSuccess={jest.fn()} onSwitchToRegister={jest.fn()} />);
+    render(<LoginForm onLoginSuccess={vi.fn()} onSwitchToRegister={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText(/Username/i), { target: { value: 'wronguser' } });
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'wrongpass' } });
@@ -61,31 +61,31 @@ describe('LoginForm', () => {
   });
 
   test('invokes onSwitchToRegister when link button clicked', () => {
-    const mockSwitch = jest.fn();
-    render(<LoginForm onLoginSuccess={jest.fn()} onSwitchToRegister={mockSwitch} />);
+    const mockSwitch = vi.fn();
+    render(<LoginForm onLoginSuccess={vi.fn()} onSwitchToRegister={mockSwitch} />);
 
     fireEvent.click(screen.getByRole('button', { name: /^Register$/i }));
     expect(mockSwitch).toHaveBeenCalledTimes(1);
   });
 
   test('renders Sign in with Google button and shows configuration hint on click when client ID is unset', () => {
-    render(<LoginForm onLoginSuccess={jest.fn()} onSwitchToRegister={jest.fn()} />);
+    render(<LoginForm onLoginSuccess={vi.fn()} onSwitchToRegister={vi.fn()} />);
 
     const googleBtn = screen.getByRole('button', { name: /Sign in with Google/i });
     expect(googleBtn).toBeInTheDocument();
 
     fireEvent.click(googleBtn);
-    expect(screen.getByText(/To enable Google Sign-In, configure REACT_APP_GOOGLE_CLIENT_ID/i)).toBeInTheDocument();
+    expect(screen.getByText(/To enable Google Sign-In, configure VITE_GOOGLE_CLIENT_ID/i)).toBeInTheDocument();
   });
 });
 
 describe('RegisterForm', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('validates password mismatch locally', async () => {
-    render(<RegisterForm onSwitchToLogin={jest.fn()} />);
+    render(<RegisterForm onSwitchToLogin={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText(/Username/i), { target: { value: 'newuser' } });
     fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'pass123' } });
