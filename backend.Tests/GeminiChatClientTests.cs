@@ -168,6 +168,12 @@ public sealed class GeminiChatClientTests
                 {
                     break;
                 }
+                catch (ObjectDisposedException) when (_shutdown.IsCancellationRequested)
+                {
+                    // Linux can surface listener shutdown as ObjectDisposedException,
+                    // while Windows commonly reports HttpListenerException.
+                    break;
+                }
 
                 using var document = await JsonDocument.ParseAsync(
                     context.Request.InputStream,
