@@ -46,7 +46,7 @@ flowchart TB
     subgraph CloudServices ["External Cloud & Managed Providers"]
         S3["AWS S3 Bucket (Private Storage)"]
         AzureSql["Azure SQL Database / MSSQL Instance"]
-        GeminiApi["Google Gemini API (gemini-3.1-flash-lite / gemini-3.6-flash)"]
+        GeminiApi["Google Gemini API (cost-first Flash fallback chain)"]
     end
 
     %% Client Interactions

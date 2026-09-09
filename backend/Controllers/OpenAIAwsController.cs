@@ -16,7 +16,7 @@ namespace OpenAiChat.Controllers
     public class OpenAIAwsController : ControllerBase
     {
         private readonly ILogger<OpenAIAwsController> _logger;
-        private readonly ChatClient _chatClient;
+        private readonly IGeminiChatClient _chatClient;
         private readonly IAmazonS3 _s3Client;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
@@ -25,7 +25,7 @@ namespace OpenAiChat.Controllers
 
         public OpenAIAwsController(
             IAmazonS3 s3Client,
-            ChatClient chatClient,
+            IGeminiChatClient chatClient,
             ILogger<OpenAIAwsController> logger,
             IUnitOfWork unitOfWork,
             IConfiguration configuration,

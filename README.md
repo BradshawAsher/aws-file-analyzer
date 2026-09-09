@@ -16,7 +16,7 @@
 **AWS File Analyzer** bridges enterprise cloud infrastructure with multimodal generative AI. It is designed to demonstrate cloud architecture best practices:
 
 1. **Secure Ingestion**: Ingests files into private Amazon S3 buckets and generates cryptographically signed, short-lived **Pre-Signed URLs** to maintain least-privilege security.
-2. **Multimodal AI Analysis**: Routes files through specialized intelligence pipelines powered by **Google Gemini** (`gemini-3.1-flash-lite`, `gemini-3.6-flash`) for image landmark/geolocation recognition, and `PdfPig` text-chunking summarization for documents.
+2. **Multimodal AI Analysis**: Routes files through specialized intelligence pipelines powered by **Google Gemini**, starting with `gemini-3.1-flash-lite` and automatically falling back across compatible Flash models when a model is rate-limited or temporarily unavailable.
 3. **Cost-Efficient Caching**: Persists file metadata and structured JSON analysis in Azure SQL to eliminate duplicate AI token costs.
 4. **Interactive Browser Speech**: Synthesizes client-side audio playback using the browser's native Web Speech API.
 
@@ -103,7 +103,7 @@ flowchart TD
 | **Backend** | C# / ASP.NET Core 8 Web API | High-throughput REST API and service layer |
 | **Data Layer** | Entity Framework Core, Azure SQL / MSSQL | Database migrations, relational persistence, repository abstraction |
 | **Cloud Storage** | AWS S3 (`AWSSDK.S3`) | Secure, scalable object storage with pre-signed URLs |
-| **AI / Multimodal** | Google Gemini (`gemini-3.1-flash-lite`, `gemini-3.6-flash`) | Multimodal vision analysis, geolocation detection, and structured JSON summarization |
+| **AI / Multimodal** | Google Gemini Flash fallback chain | Multimodal vision analysis, geolocation detection, structured JSON summarization, transient retries, and rate-limit failover |
 | **Document Processing**| `UglyToad.PdfPig` | High-performance PDF stream text extraction |
 | **Security** | JWT (JSON Web Tokens), `BCrypt.Net-Next` | Token authentication and password hashing |
 | **Frontend** | React 18, Axios, Tailwind CSS v3 | Responsive single-page application and auth state |
@@ -160,12 +160,11 @@ cd backend
 # {
 #   "ConnectionStrings": { "DefaultConnection": "<YOUR_AZURE_SQL_CONNECTION_STRING>" },
 #   "AWS": { "S3BucketName": "<YOUR_S3_BUCKET_NAME>", "Region": "us-east-1" },
-#   "Gemini": { "ModelName": "gemini-3.1-flash-lite" }
+#   "Gemini": { "Models": ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.5-flash"] }
 # }
 
 # Configure your Gemini API Key securely with .NET User Secrets:
 dotnet user-secrets set "Gemini:ApiKey" "<YOUR_GEMINI_API_KEY>"
-dotnet user-secrets set "Gemini:ModelName" "gemini-3.1-flash-lite"
 
 # Restore packages and update database migrations
 dotnet restore

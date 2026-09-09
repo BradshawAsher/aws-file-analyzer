@@ -8,10 +8,10 @@ namespace OpenAiChat.Services
     {
         private const int MAX_TEXT_BYTES = 1000;
 
-        private readonly ChatClient _chatClient;
+        private readonly IGeminiChatClient _chatClient;
         private readonly HttpClient _httpClient;
 
-        public TextService(ChatClient chatClient, HttpClient httpClient)
+        public TextService(IGeminiChatClient chatClient, HttpClient httpClient)
         {
             _chatClient = chatClient;
             _httpClient = httpClient;
@@ -67,7 +67,7 @@ Rules:
                         new UserChatMessage($"{userPrompt}:\n\n{inputText}")
                     }, options);
 
-                return response.Value.Content[0].Text;
+                return response.Content[0].Text;
             }
             catch (Exception)
             {

@@ -27,12 +27,13 @@ This guide contains the exact talking points, architectural explanations, edge c
 
 ### Q2: Why and how did you migrate from OpenAI to Google Gemini?
 **Answer**:
-* **Why**: OpenAI API keys and older models periodically deprecate or expire, creating operational overhead and higher token costs. Google Gemini (`gemini-3.1-flash-lite`, `gemini-3.6-flash`) provides superior multimodal reasoning, ultra-fast latency, lower pricing, and an expanded context window.
-* **How (Zero-Downtime Migration Pattern)**:
+* **Why**: OpenAI API keys and older models periodically deprecate or expire, creating operational overhead and higher token costs. Google Gemini provides cost-efficient multimodal models, low latency, and large context windows suitable for document and image analysis.
+* **How (Provider Migration Pattern)**:
   1. **OpenAI Compatibility Layer**: Google Gemini provides an OpenAI-compatible endpoint (`https://generativelanguage.googleapis.com/v1beta/openai/`). Rather than refactoring every single service call, we re-pointed the .NET `OpenAIClientOptions.Endpoint` to Gemini's gateway.
   2. **Image Inlining Optimization**: While OpenAI accepted remote image URLs, Gemini strictly requires inline base64 Data URIs for remote assets for security. We enhanced `ImageService` to download the S3 pre-signed image stream and pass `ChatMessageContentPart.CreateImagePart(BinaryData, mediaType)`, which serializes seamlessly to Data URIs.
   3. **Backward Compatibility**: We kept existing controller route endpoints (`/OpenAISummary`, `/OpenAIChat`) while adding clean aliases (`/GeminiSummary`, `/GeminiChat`), preventing client-side breakage.
   4. **Credential Security**: Credentials were moved into ASP.NET Core User Secrets (`Gemini:ApiKey`), ensuring no secret keys are checked into source control.
+  5. **Rate-Limit Resilience**: A shared Gemini client starts with low-cost Flash-Lite models, moves through a configurable model hierarchy on `429` or unavailable-model responses, and uses bounded exponential backoff with jitter for timeouts and transient `5xx` errors. Authentication and malformed-request failures are not retried.
 
 ---
 

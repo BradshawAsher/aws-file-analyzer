@@ -9,10 +9,10 @@ namespace OpenAiChat.Services
         private const int MAX_FILE_SIZE_IN_ONE_CHUNK = 12000;
         private const int CHUNK_SIZE_IN_BYTES = 4000;
 
-        private readonly ChatClient _chatClient;
+        private readonly IGeminiChatClient _chatClient;
         private readonly HttpClient _httpClient;
 
-        public PdfService(ChatClient chatClient, HttpClient httpClient)
+        public PdfService(IGeminiChatClient chatClient, HttpClient httpClient)
         {
             _chatClient = chatClient;
             _httpClient = httpClient;
@@ -94,7 +94,7 @@ Rules:
                         new SystemChatMessage(systemPrompt),
                         new UserChatMessage($"{userPrompt}:\n\n{inputText}")
                     }, options);
-                return response.Value.Content[0].Text;
+                return response.Content[0].Text;
             }
             catch (Exception)
             {

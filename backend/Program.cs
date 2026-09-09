@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using OpenAI.Chat;
+using OpenAiChat.Configuration;
 using OpenAiChat.CustomExceptions;
 using OpenAiChat.Data;
 using OpenAiChat.Repository;
@@ -26,41 +26,10 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnCh
 builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
 builder.Configuration.AddEnvironmentVariables();
 
-// Support both Gemini (via OpenAI-compatible endpoint) and legacy OpenAI configurations
-string apiKey = builder.Configuration["Gemini:ApiKey"] 
-    ?? builder.Configuration["OpenAI:ApiKey"] 
-    ?? string.Empty;
-
-if (string.IsNullOrWhiteSpace(apiKey))
-{
-    apiKey = "placeholder-key-configure-gemini-apikey";
-}
-
-string modelName = builder.Configuration["Gemini:ModelName"] 
-    ?? builder.Configuration["OpenAI:ModelName"] 
-    ?? "gemini-3.1-flash-lite";
-
-string? customEndpoint = builder.Configuration["Gemini:Endpoint"];
-
-bool isGemini = !string.IsNullOrEmpty(builder.Configuration["Gemini:ApiKey"]) 
-                || !string.IsNullOrEmpty(builder.Configuration["Gemini:ModelName"])
-                || !string.IsNullOrEmpty(customEndpoint)
-                || modelName.StartsWith("gemini", StringComparison.OrdinalIgnoreCase);
-
-OpenAI.OpenAIClientOptions clientOptions = new();
-if (isGemini)
-{
-    clientOptions.Endpoint = new Uri(customEndpoint ?? "https://generativelanguage.googleapis.com/v1beta/openai/");
-}
-
-ChatClient chatClient = new(
-    model: modelName,
-    credential: new System.ClientModel.ApiKeyCredential(apiKey),
-    options: clientOptions
-);
-
 // Add services to the container.
-builder.Services.AddSingleton(chatClient);
+builder.Services.Configure<GeminiOptions>(
+    builder.Configuration.GetSection(GeminiOptions.SectionName));
+builder.Services.AddSingleton<IGeminiChatClient, GeminiChatClient>();
 
 builder.Services.AddHttpClient();
 

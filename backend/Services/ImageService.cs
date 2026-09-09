@@ -4,10 +4,10 @@ namespace OpenAiChat.Services
 {
     public class ImageService : IImageService
     {
-        private readonly ChatClient _chatClient;
+        private readonly IGeminiChatClient _chatClient;
         private readonly HttpClient _httpClient;
 
-        public ImageService(ChatClient chatClient, IHttpClientFactory httpClientFactory)
+        public ImageService(IGeminiChatClient chatClient, IHttpClientFactory httpClientFactory)
         {
             _chatClient = chatClient;
             _httpClient = httpClientFactory.CreateClient();
@@ -73,7 +73,7 @@ Rules:
             };
 
             var completionResult = await _chatClient.CompleteChatAsync(messages, options).ConfigureAwait(false);
-            var result = completionResult.Value.Content[0].Text;
+            var result = completionResult.Content[0].Text;
             var metaData = System.Text.Json.JsonSerializer.Deserialize<MetaData.ImageMetaData>(result);
 
             return result;
