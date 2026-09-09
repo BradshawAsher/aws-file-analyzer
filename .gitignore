@@ -11,6 +11,11 @@ node_modules/
 dist/
 build/
 .env
+.copilot-azure/
+
+# Azure Developer CLI local environment (may contain deployment values)
+.azure/*
+!.azure/deployment-plan.md
 
 # System
 .DS_Store

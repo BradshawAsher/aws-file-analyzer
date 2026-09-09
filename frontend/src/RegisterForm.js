@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios'; // Import Axios
+import apiClient from './apiClient';
 
-// Assume your backend API URL for register is:
-const REGISTER_URL = 'https://localhost:5000/api/Security/register'; 
+const REGISTER_URL = '/api/Security/register';
 
 const RegisterForm = ({ onSwitchToLogin }) => {
     const [username, setUsername] = useState('');
@@ -29,7 +28,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
         setIsLoading(true);
         try {
             // 1. Make the POST request to the backend API
-            const response = await axios.post(REGISTER_URL, {
+            const response = await apiClient.post(REGISTER_URL, {
                 username: username, // Send username
                 password: password  // Send password
             });
@@ -147,16 +146,13 @@ const RegisterForm = ({ onSwitchToLogin }) => {
         {/* Link to Login form */}
         <p className="mt-4 text-sm text-center text-gray-600">
             Already have an account?
-            <a 
-              href="#" 
-              onClick={(e) => { 
-                e.preventDefault(); 
-                onSwitchToLogin(); 
-              }} 
-              className="ml-1 font-medium text-indigo-600 hover:text-indigo-500"
+            <button
+              type="button"
+              onClick={onSwitchToLogin}
+              className="ml-1 border-0 bg-transparent p-0 font-medium text-indigo-600 hover:text-indigo-500"
             >
               Log In
-            </a>
+            </button>
         </p>
       </form>
   );

@@ -20,12 +20,6 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     ContentRootPath = AppContext.BaseDirectory
 });
 
-// Explicitly ensure user secrets from the backend assembly are loaded
-builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true);
-builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
-builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
-builder.Configuration.AddEnvironmentVariables();
-
 // Add services to the container.
 builder.Services.Configure<GeminiOptions>(
     builder.Configuration.GetSection(GeminiOptions.SectionName));
@@ -66,7 +60,15 @@ builder.Services.AddScoped<IFileAnalysisService, FileAnalysisService>();
 JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var keyBytes = Encoding.UTF8.GetBytes(jwtSection["Key"] ?? "a-very-long-secret-at-least-32-chars-for-dev-fallback");
+var jwtKey = jwtSection["Key"];
+
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Key must be configured with a secret containing at least 32 characters.");
+}
+
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -75,7 +77,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;    // change to true to enforce HTTPS in prod
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -154,13 +156,21 @@ builder.Services.AddSwaggerGen(c =>
 // register a token service (below) for creation / refresh
 builder.Services.AddSingleton<ITokenService, TokenService>();
 
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins);
+        }
+
+        policy.AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 
@@ -185,6 +195,8 @@ app.UseCors("AllowReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
+    .AllowAnonymous();
 app.MapControllers();
 
 app.Run();

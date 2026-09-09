@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import apiClient from "./apiClient";
 
 const FileUploadAnalyzer = ({handleLogout, setAnalysisText, cleanAnalysisText}) => {
     const [file, setFile] = useState(null);
@@ -18,14 +18,6 @@ const FileUploadAnalyzer = ({handleLogout, setAnalysisText, cleanAnalysisText}) 
         cleanAnalysisText();
     };
 
-  const token = localStorage.getItem('authToken');
-  
-  if (token)
-  {
-    // Set the Authorization header globally for all subsequent requests
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  }
-
   const handleUpload = async () => {
     if (!file) return;
     setLoading(true);
@@ -36,8 +28,7 @@ const FileUploadAnalyzer = ({handleLogout, setAnalysisText, cleanAnalysisText}) 
       const formData = new FormData();
       formData.append("file", file);
 
-      // Replace with your API endpoint
-      const res = await axios.post("https://localhost:5000/OpenAIAws/AwsFileUpload", formData, {
+      const res = await apiClient.post("/OpenAIAws/AwsFileUpload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -58,8 +49,7 @@ const FileUploadAnalyzer = ({handleLogout, setAnalysisText, cleanAnalysisText}) 
     setAnalyzing(true);
     setMessage("");
     try {
-      // Replace with your API endpoint
-      const res = await axios.post("https://localhost:5000/OpenAIAws/OpenAISummary", {
+      const res = await apiClient.post("/OpenAIAws/OpenAISummary", {
         fileUrl: fileUrl, // or S3 key if your backend needs it
       });
 
