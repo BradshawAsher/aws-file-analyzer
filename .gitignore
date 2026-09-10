@@ -28,5 +28,6 @@ logs.zip
 logs_dir/
 publish/
 .wrangler/
+.freebuff/
 test-results/
 playwright-report/
