@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
-  const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://aws-file-analyzer.bradshin231.workers.dev';
+  const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://aws-file-analyzer.pages.dev';
 
   test.beforeEach(async ({ page }) => {
     await page.goto(baseURL);
