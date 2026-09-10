@@ -107,9 +107,9 @@ flowchart TD
 | :---: | :---: |
 | ![Upload UI](./screenshots/ui-upload-success.png) | ![Analyze UI](./screenshots/ui-analysis-result.png) |
 
-| Backend Swagger REST API | Image Geolocation Response |
+| Photo Gallery & Geolocation Map | Backend Swagger REST API |
 | :---: | :---: |
-| ![Swagger Docs](./screenshots/api-swagger.png) | ![API Response](./screenshots/api-analyze-image-success.png) |
+| ![Photo Gallery & Map](./screenshots/ui-gallery-map.png) | ![Swagger Docs](./screenshots/api-swagger.png) |
 
 ---
 
