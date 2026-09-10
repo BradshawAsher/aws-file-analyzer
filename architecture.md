@@ -46,7 +46,7 @@ flowchart TB
     subgraph CloudServices ["External Cloud & Managed Providers"]
         S3["AWS S3 Bucket (Private Storage)"]
         AzureSql["Azure SQL Database / MSSQL Instance"]
-        GeminiApi["Google Gemini API (cost-first Flash fallback chain)"]
+        GeminiApi["Google Gemini API (8-model cost-first Flash fallback chain)"]
     end
 
     %% Client Interactions
@@ -96,13 +96,13 @@ flowchart TB
 * **Responsibilities**:
   * `GuestLanding.jsx`: Presents a public project overview with sample analysis and starts a restricted, short-lived guest session for the live analyzer.
   * `LoginForm.jsx` / `RegisterForm.jsx`: Captures user credentials and acquires JWT token, with support for Google OAuth 2.0 one-tap login and immediate auto-login upon registration.
-  * `FileUploadAnalyze.jsx`: Dispatches multipart uploads, triggers multimodal AI analysis, stages guest activity in `pending_guest_claim`, and hydrates claimed sessions upon authentication.
+  * `FileUploadAnalyze.jsx`: Dispatches multipart uploads, triggers multimodal AI analysis, stages guest activity in `pending_guest_claim`, and restores that browser-local state after authentication.
   * `AiVoicePlayer.jsx`: Wraps browser `window.speechSynthesis` and `SpeechSynthesisUtterance` to read AI-generated summaries aloud.
 
 ### 3.2 Gateway & Controllers (.NET 8 Web API)
 * **`SecurityController`**:
   * `POST /api/Security/guest-session`: Issues a short-lived Guest JWT without inserting an account into Azure SQL.
-  * `POST /api/Security/claim-guest-uploads`: Validates S3 bucket ownership and claims pre-signed URLs generated during guest sessions into an authenticated user's account.
+  * `POST /api/Security/claim-guest-uploads`: Validates that staged guest URLs belong to the configured S3 bucket and acknowledges the authenticated handoff. Durable per-user database ownership is not implemented yet.
   * `POST /api/Security/register`: Salted password hashing via `BCrypt.Net.BCrypt.HashPassword` with automatic JWT issuance.
   * `POST /api/Security/login`: Verifies passwords via `BCrypt.Net.BCrypt.Verify` and issues signed HMAC-SHA256 JWT access and refresh tokens.
   * `POST /api/Security/google-login`: Validates Google ID tokens via `GoogleJsonWebSignature`, provisions new users automatically if non-existent, and issues JWT access tokens.
@@ -120,8 +120,9 @@ Guest JWTs can call only the upload and analysis operations. Bucket listings, ac
 ### 3.3 Domain Services & AI Pipelines
 * **`FileUploadService`**: Manages AWS S3 `PutObjectAsync` and creates 60-minute pre-signed URLs via `GetPreSignedUrlRequest`.
 * **`FileAnalysisService`**: Master router. Performs HTTP `GET` header sniffing to detect MIME types (`image/*`, `application/pdf`, `text/*`), checks Azure SQL cache, and persists analysis records.
-* **`ImageService`**: Fetches image bytes from S3 pre-signed URL, converts to base64 Data URI part, and invokes Google Gemini (`gemini-3.1-flash-lite`) requesting strict JSON geolocation and landmark metadata.
-* **`PdfService`**: Uses `PdfPig` to stream binary PDFs. If text exceeds 12,000 characters, it slices into 4,000-byte segments, gathers partial summaries, and executes an aggregate summarization prompt.
+* **`GeminiChatClient`**: Uses one shared, ordered fallback chain for image, PDF, text, and chat requests: `gemini-3.1-flash-lite` → `gemini-3.5-flash-lite` → `gemini-2.5-flash-lite` → `gemini-2.5-flash` → `gemini-3.5-flash` → `gemini-3.6-flash` → `gemini-3.7-flash` → `gemini-3.8-flash`. It retries transient failures with bounded backoff and moves to the next model for rate-limit or model-availability failures.
+* **`ImageService`**: Fetches image bytes from an S3 pre-signed URL, converts them to an inline image part, and invokes the shared Gemini fallback client for strict JSON geolocation and landmark metadata.
+* **`PdfService`**: Uses `PdfPig` to extract text from binary PDFs. If extracted text exceeds 12,000 characters, it slices the text into 4,000-character segments, summarizes each segment sequentially, and runs a final aggregate summarization prompt.
 * **`TextService`**: Cleans HTML/whitespace with `HtmlAgilityPack` and produces structured JSON summaries.
 
 ---
@@ -132,36 +133,38 @@ Guest JWTs can call only the upload and analysis operations. Bucket listings, ac
 | Column | Type | Constraints | Purpose |
 | :--- | :--- | :--- | :--- |
 | `Id` | `int` | Primary Key, Identity | Unique user ID |
-| `UserName` | `nvarchar(450)` | Not Null, Unique Index | Unique login handle |
-| `PasswordHash` | `nvarchar(max)` | Not Null | BCrypt salted hash string |
-| `Role` | `nvarchar(50)` | Nullable | Role authorization claim |
+| `Username` | `nvarchar(100)` | Not Null | Login handle or Google-account email |
+| `Password` | `nvarchar(max)` | Not Null | BCrypt salted password hash; Google-created users receive a random unusable password |
 
 ### `FileUploadHistory`
 | Column | Type | Constraints | Purpose |
 | :--- | :--- | :--- | :--- |
 | `Id` | `int` | Primary Key, Identity | Upload event ID |
-| `FileName` | `nvarchar(255)` | Not Null | Original file name |
-| `FileExtension` | `nvarchar(50)` | Not Null | MIME/extension classification |
-| `FileSize` | `bigint` | Not Null | Size in bytes |
-| `LoadedTime` | `datetime2` | Not Null | Upload timestamp |
-| `PresignedUrl` | `nvarchar(max)` | Not Null | Generated temporary access URL |
+| `LocalFileName` | `nvarchar(90)` | Not Null | Original file name |
+| `FileLengthInBytes` | `int` | Not Null | Size in bytes |
+| `AwsKey` | `nvarchar(60)` | Nullable | S3 object key |
+| `PresignedUrl` | `nvarchar(480)` | Nullable | Generated temporary access URL |
+| `LoadTime` | `datetimeoffset` | Not Null | Upload timestamp |
+| `FileExtension` | `nvarchar(20)` | Nullable | MIME/extension classification |
 
 ### `FileAnalysisResult`
 | Column | Type | Constraints | Purpose |
 | :--- | :--- | :--- | :--- |
 | `Id` | `int` | Primary Key, Identity | Analysis record ID |
-| `PresignedUrl` | `nvarchar(450)` | Not Null, Indexed | Matching file URL for cache lookup |
-| `AnalysisText` | `nvarchar(max)` | Not Null | JSON response payload from Gemini |
+| `PresignedUrl` | `nvarchar(480)` | Not Null | Exact signed URL used for cache lookup |
+| `AnalysisText` | `nvarchar(max)` | Nullable | JSON response payload from Gemini |
 
 ---
 
+## 5. Architectural Decisions
+
 | Decision | Selected Option | Alternative Considered | Trade-Off Rationale |
 | :--- | :--- | :--- | :--- |
-| **AI Provider** | Google Gemini (`gemini-2.5-flash` / `1.5-flash`) | OpenAI GPT-4o | Gemini offers state-of-the-art multimodal vision, higher token limits, lower latency, and zero per-token expense under free-tier allowances. |
-| **Media Delivery to LLM** | AWS S3 Pre-Signed URLs + Inline Base64 | Streaming raw byte streams through backend RAM | Eliminates server memory bloat; allows flexible cloud hosting while supporting Gemini's strict input format requirements. |
+| **AI Provider** | Google Gemini Flash hierarchy (`gemini-3.1-flash-lite` through `gemini-3.8-flash`) | One fixed model or OpenAI-only integration | Lower-cost models are attempted first, while later models provide resilience when a model is rate-limited or unavailable. |
+| **Media Delivery to LLM** | Private S3 + short-lived pre-signed URLs; backend inlines image bytes for Gemini | Public objects or browser-held cloud credentials | Keeps the bucket private and credentials server-side. The API still buffers image content for the multimodal request, which is acceptable under the current upload limits. |
 | **Response Format** | Enforced JSON Object Schema | Free-form Markdown / Natural Language | Guarantees reliable frontend parsing and schema adherence for UI fields without regex parsing. |
-| **Result Caching** | Relational Azure SQL Cache | In-memory Redis Cache | Cost efficiency: Leverages existing SQL database without provisioning additional Redis clusters for low-to-medium loads. |
-| **Frontend Hosting** | Cloudflare Pages | Azure Static Web Apps / S3 Website | Cloudflare Pages provides unlimited free bandwidth, global edge distribution, and instantaneous preview deploys at \$0 cost. |
+| **Result Caching** | Relational Azure SQL cache keyed by exact pre-signed URL | In-memory Redis cache | Reuses the existing SQL database without another service, but URL expiration means object-key-based caching would be more durable. |
+| **Frontend Hosting** | Cloudflare Pages, plus a Git-connected Worker mirror | Azure Static Web Apps / S3 Website | Pages preserves the established public URL and deploys after green CI; the Worker mirror demonstrates Cloudflare Builds but duplicates the frontend until a single hostname is selected. |
 | **Secrets Management**| Azure Key Vault + Managed Identity | App Settings / Environment Variables | Prevents credential exposure in source code or CI logs; secrets are resolved at runtime via passwordless Entra ID identity tokens. |
 
 ---
@@ -177,12 +180,12 @@ Guest JWTs can call only the upload and analysis operations. Bucket listings, ac
 * **Storage**: AWS S3 Bucket `aws-file-analyzer-bd3b69e5` (`us-east-2`)
 
 ### 6.2 Zero-Trust Security Architecture
-1. **Passwordless Managed Identity**: The App Service uses a System-Assigned Managed Identity (`1432c434-a0a0-4294-8ebd-7a207e84d298`) assigned the `Key Vault Secrets User` role. Secrets (`gemini-api-key`, `jwt-key`, `aws-access-key-id`, `aws-secret-access-key`) are referenced using `@Microsoft.KeyVault(...)` syntax and resolved directly into environment variables by Azure without code intervention.
+1. **Passwordless Managed Identity**: The App Service uses a System-Assigned Managed Identity assigned the `Key Vault Secrets User` role. Secrets (`gemini-api-key`, `jwt-key`, `aws-access-key-id`, `aws-secret-access-key`) are referenced using `@Microsoft.KeyVault(...)` syntax and resolved into App Service settings without storing them in the repository or GitHub Actions.
 2. **Database Least Privilege**: Azure SQL data-plane access for the App Service identity is granted explicitly via Entra ID SQL role mappings (`db_datareader`, `db_datawriter`), preventing the need for embedded SQL administrative credentials.
 3. **CORS Boundary**: Kestrel enforces a strict origin policy allowing `https://aws-file-analyzer.pages.dev`, `https://aws-file-analyzer.bradshin231.workers.dev`, and local development origins, rejecting unapproved third-party web clients.
 
 ### 6.3 Cost Optimization & \$0 Spending Target
-* **App Service**: F1 Free SKU running on Linux container runtime (\$0).
-* **Azure SQL Serverless**: `GP_S_Gen5_1` with automatic pause after 60 minutes of inactivity (\$0 under free grant allowance).
-* **Cloudflare Pages**: Free tier with unlimited edge bandwidth and automatic SSL certificates (\$0).
-* **AWS S3**: Micro-tier storage within standard free usage guidelines.
+* **App Service**: F1 Free SKU minimizes API compute cost within that tier's quotas.
+* **Azure SQL Serverless**: `GP_S_Gen5_1` pauses automatically after 60 minutes of inactivity and can use available student/free grants.
+* **Cloudflare Pages**: Hosted on the free tier with edge delivery and automatic SSL certificates.
+* **AWS S3 and Gemini**: Low demo traffic is intended to remain within small usage or free-tier allowances, but charges and quotas depend on the active accounts and current provider terms.

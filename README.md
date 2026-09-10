@@ -24,14 +24,14 @@
 
 **AWS File Analyzer** demonstrates enterprise multi-cloud orchestration across **Cloudflare**, **Microsoft Azure**, **Amazon Web Services (AWS)**, and **Google Cloud (Gemini AI)**:
 
-1. **Global Edge Delivery**: React 19 SPA deployed on **Cloudflare Pages** edge network for sub-millisecond static asset delivery, instant SSL, and full deep linking across SPA routes (`/`, `/analyzer`, `/gallery`, `/gallery?view=map`, `/login`).
+1. **Global Edge Delivery**: React 19 SPA deployed on **Cloudflare Pages** for globally cached static delivery, managed SSL, and deep linking across SPA routes (`/`, `/analyzer`, `/gallery`, `/gallery?view=map`, `/login`).
 2. **Unified Navigation & Interactive API Access**: Persistent top-level navigation links provide instant switching between the **Landing Page**, **Live Analyzer**, **Photo Gallery & Map**, and direct one-click **Swagger API Documentation** from all main application views.
 3. **Zero-Trust Identity & Secrets**: .NET 8 API running on **Azure App Service Linux** leveraging **System-Assigned Managed Identity** to retrieve cryptographic JWT signing keys and API credentials from **Azure Key Vault** (zero secrets stored in code or repository).
 4. **Multi-File Parallel AWS S3 Ingestion**: Ingests multiple files concurrently using `Task.WhenAll` into private Amazon S3 buckets and returns short-lived, cryptographically signed **Pre-Signed URLs** (60-min TTL). Database state is synchronized using concurrency-safe thread locks.
 5. **Concurrent Multimodal Generative AI**: Analyzes batches of images, PDFs, and text documents in parallel using **Google Gemini**, with a cost-first fallback hierarchy scaling up to `gemini-3.8-flash`.
-6. **Seamless Dual Authentication**: Supports email/password registration with instant auto-login token issuance, as well as one-tap **Google OAuth 2.0** with automatic account provisioning.
-7. **Cost-Controlled Serverless Database**: Stores user auth, upload history, and cached AI results in **Azure SQL Serverless** configured with a 60-minute auto-pause, resulting in an estimated **$0/month operating cost**.
-8. **End-to-End Reliability**: Validated across a **65-test automated testing pyramid** (26 xUnit backend, 29 Vitest frontend, 10 Playwright E2E) with dual GitHub Actions CI/CD workflows deploying on green commits.
+6. **Seamless Dual Authentication**: Supports username/password registration with instant auto-login token issuance, as well as **Google Identity Services** login with automatic account provisioning.
+7. **Cost-Controlled Serverless Database**: Stores user auth, upload history, and cached AI results in **Azure SQL Serverless** configured with a 60-minute auto-pause. The portfolio deployment targets near-zero cost while student credits and provider free allowances remain available; actual cost is usage-dependent.
+8. **End-to-End Reliability**: Covered by a **65-test suite** (26 xUnit backend, 29 Vitest frontend, and 10 Playwright E2E scenarios). Push CI gates deployment on the 55 backend and frontend tests; the browser suite is available through the root test command.
 
 ---
 
@@ -91,10 +91,10 @@ flowchart TD
 
 * **🔒 End-to-End JWT Authentication**: Secure user registration and login with BCrypt password hashing, bearer token authorization, and token persistence.
 * **🧪 Protected Guest Demo**: Short-lived, non-persistent guest JWTs let recruiters run one real file through S3 and Gemini without registering; tighter upload and hourly request limits protect the free-tier services.
-* **🔄 Seamless Guest History Claiming**: Visitors can test the analyzer as a guest, then sign in or register with zero loss of progress—all guest files, Gemini analyses, and audio players are claimed and hydrated directly into their account.
+* **🔄 Guest Session Handoff**: Visitors can test the analyzer as a guest and restore staged file URLs and analysis from browser `localStorage` after signing in or registering. Durable per-user ownership in Azure SQL is tracked as future work.
 * **☁️ AWS S3 Cloud Ingestion**: Reliable direct streaming to Amazon S3 buckets with time-limited pre-signed URLs (60-minute TTL) for secure access delegation.
-* **👁️ Multimodal Image Intelligence**: Powered by Google Gemini (`gemini-3.1-flash-lite`), providing geolocation estimation, landmark identification, weather inference, category tagging, confidence scoring, and justification strings.
-* **📄 Chunked PDF & Document Summarization**: Binary stream extraction using `PdfPig`, intelligent text-chunking (`4000` byte windows) for large multi-page documents, and hierarchical summary aggregation.
+* **👁️ Multimodal Image Intelligence**: Powered by the shared Gemini Flash fallback hierarchy, providing geolocation estimation, landmark identification, weather inference, category tagging, confidence scoring, and justification strings.
+* **📄 Chunked PDF & Document Summarization**: Binary stream extraction using `PdfPig`, 4,000-character text windows for large multi-page documents, and hierarchical summary aggregation.
 * **💾 Intelligent Result Caching**: Avoids redundant API calls and reduces LLM inference costs by checking Azure SQL for prior analysis before making external requests.
 * **🔊 Audio Narration**: Built-in browser speech synthesis (`SpeechSynthesisUtterance`) that reads image captions and document highlights aloud.
 * **🏛️ Clean Architecture**: Implements Repository Pattern, Unit of Work, Dependency Injection, and global exception handling.
@@ -137,7 +137,7 @@ flowchart TD
 
 ### Security & Authentication
 * `POST /api/Security/guest-session` - Issue a non-persistent 15-minute Guest JWT for the rate-limited live demo.
-* `POST /api/Security/claim-guest-uploads` - Associate pre-signed S3 file URLs generated during a guest demo session into an authenticated user's account with bucket allowlist validation.
+* `POST /api/Security/claim-guest-uploads` - Validate staged guest S3 URLs against the configured bucket and acknowledge an authenticated browser-state handoff; it does not yet persist per-user ownership.
 * `POST /api/Security/register` - Register a new user with BCrypt-hashed password and receive immediate access tokens (auto-login).
 * `POST /api/Security/login` - Authenticate credentials and receive Access & Refresh JWT tokens.
 * `POST /api/Security/google-login` - Authenticate via Google ID Token (OAuth 2.0) with automated user registration and JWT token issuance.
@@ -157,17 +157,17 @@ Legacy `/OpenAIAws` and `/GeminiAws` route prefixes remain available for backwar
 
 ## 💡 Key Engineering Decisions & Trade-Offs
 
-### 1. Pre-Signed URLs vs. Direct Streaming to AI
-* **Decision**: Generate time-limited AWS S3 Pre-Signed URLs (60-minute expiry) to pass to downstream AI services rather than loading heavy raw binary payloads into server RAM.
-* **Trade-off**: Requires AWS IAM credentials configured with `s3:GetObject` permissions for the bucket, but dramatically reduces memory footprint and enables asynchronous client access.
+### 1. Private S3 Objects and Pre-Signed URLs
+* **Decision**: Store uploads in a private S3 bucket and generate 60-minute pre-signed URLs that let the backend retrieve content without making the bucket public. The backend extracts PDF/text content and inlines image bytes when constructing Gemini requests.
+* **Trade-off**: Keeps AWS credentials out of the browser and supports temporary file viewing, but image analysis still buffers bounded file content in backend memory.
 
 ### 2. Azure SQL Result Caching
-* **Decision**: Before invoking Gemini, query the `FileAnalysisResult` table using the pre-signed URL / object key.
-* **Trade-off**: Slight database lookup latency on first run in exchange for near-instant response times and 100% token cost elimination on repeated queries.
+* **Decision**: Before invoking Gemini, query the `FileAnalysisResult` table using the exact pre-signed URL.
+* **Trade-off**: Adds a database lookup, but an exact-URL hit avoids another model request. Because newly generated pre-signed URLs can differ for the same object, keying the cache by stable S3 object key would improve the hit rate.
 
 ### 3. PDF Chunking Strategy
-* **Decision**: Files exceeding 12,000 characters are partitioned into 4,000-byte chunks, summarized individually, and synthesized into a final aggregate summary.
-* **Trade-off**: Multiple smaller parallel LLM calls prevent token window overflow and preserve context fidelity across multi-page documents.
+* **Decision**: Extracted PDF text exceeding 12,000 characters is partitioned into 4,000-character chunks, summarized individually, and synthesized into a final aggregate summary.
+* **Trade-off**: Multiple smaller sequential LLM calls bound individual prompt size, but increase latency and can lose details during hierarchical summarization.
 
 ---
 
@@ -188,7 +188,7 @@ cd backend
 # {
 #   "ConnectionStrings": { "DefaultConnection": "<YOUR_AZURE_SQL_CONNECTION_STRING>" },
 #   "AWS": { "S3BucketName": "<YOUR_S3_BUCKET_NAME>", "Region": "us-east-1" },
-#   "Gemini": { "Models": ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.5-flash"] }
+#   "Gemini": { "Models": ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash"] }
 # }
 
 # Configure your Gemini API Key securely with .NET User Secrets:
@@ -230,7 +230,7 @@ See [`future_work.md`](future_work.md) for the detailed product and engineering 
 
 Every push to `main` executes continuous integration and multi-cloud deployment workflows:
 
-1. **Regression & E2E Validation** ([`.github/workflows/regression.yml`](.github/workflows/regression.yml)): Runs all 26 .NET xUnit tests, all 29 Vite/Vitest component tests, and 10 Playwright browser scenarios across both guest and authenticated user journeys.
+1. **Regression Validation** ([`.github/workflows/regression.yml`](.github/workflows/regression.yml)): Every push and pull request runs 26 .NET xUnit cases and 29 Vite/Vitest tests. Scheduled or manually dispatched runs also execute safe live smoke checks. The 10 Playwright browser scenarios run locally through `npm run test:playwright` or as part of `npm test`.
 2. **Azure App Service Deployment** ([`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)): Deploys the .NET 8 API to Azure Linux App Service using secretless GitHub OpenID Connect (OIDC) federated credentials (`azure/login@v2`). No permanent Azure passwords or service principal secrets are stored in GitHub repository secrets.
 3. **Cloudflare Pages Edge Delivery** ([`https://aws-file-analyzer.pages.dev`](https://aws-file-analyzer.pages.dev)): Continuous deployment is fully automated via GitHub Actions using Cloudflare Wrangler (`cloudflare/wrangler-action@v3`) with repository secret `CLOUDFLARE_API_TOKEN` and variable `PAGES_DEPLOY_ENABLED: true`.
-
+4. **Cloudflare Worker Mirror** ([`https://aws-file-analyzer.bradshin231.workers.dev`](https://aws-file-analyzer.bradshin231.workers.dev)): A second static-assets deployment is connected directly to GitHub through Cloudflare Builds. It currently mirrors the Pages site and is retained until the project standardizes on one production hostname.

@@ -79,27 +79,26 @@ A public guest landing page and short-lived guest JWT flow were added so recruit
 
 **Date:** September 10, 2026
 
-Added seamless guest history claiming (`POST /api/Security/claim-guest-uploads`) and client state handoff so visitors testing the live demo can register or sign in without losing their uploaded files, AI analyses, or voice players. Implemented one-tap Google OAuth 2.0 with automatic account provisioning and immediate JWT session issuance upon standard registration.
+Added a guest session handoff (`POST /api/Security/claim-guest-uploads`) and browser-local state restoration so visitors testing the live demo can register or sign in without immediately losing their staged URLs and AI results. The endpoint validates that submitted URLs belong to the configured S3 bucket; durable account ownership remains a future schema change. Implemented Google OAuth 2.0 login with automatic account provisioning and immediate JWT session issuance upon standard registration.
 
-Expanded test coverage to 54 automated tests across backend xUnit, Vite/Vitest component tests, and a 7-scenario Playwright headless browser E2E suite. Automated continuous deployment to both Cloudflare Pages (`aws-file-analyzer.pages.dev`) via Wrangler and Azure App Service via secretless GitHub OIDC.
+Expanded test coverage to 65 automated tests across 26 backend xUnit cases, 29 Vite/Vitest component tests, and a 10-scenario Playwright headless browser E2E suite. Automated continuous deployment to both Cloudflare Pages (`aws-file-analyzer.pages.dev`) via Wrangler and Azure App Service via secretless GitHub OIDC; the duplicate Cloudflare Worker deployment remains Git-connected through Cloudflare Builds.
 
-**Outcome:** A seamless, production-ready onboarding experience for recruiters and visitors with complete end-to-end regression validation and automated multi-cloud deployment.
+**Outcome:** A recruiter-friendly onboarding experience with automated multi-cloud deployment, fast CI regression gates, and a separate local Playwright browser suite.
 
 ## Current state
 
 The project currently combines:
 
-- Public guest landing page, demo live analyzer, and seamless account claiming upon sign-in/registration
+- Public guest landing page, demo live analyzer, and browser-local guest-session handoff upon sign-in/registration
 - Dual authentication: BCrypt salted credentials and Google OAuth 2.0 with automated user provisioning
 - Immediate auto-login token issuance upon registration (zero re-login friction)
 - An ASP.NET Core 8 API on Azure App Service with Azure Key Vault Managed Identity
 - AWS S3 private object storage with 60-minute presigned URLs and S3 URL allowlisting
 - Azure SQL Serverless persistence with EF Core Unit of Work and 60-minute auto-pause
-- Structured Google Gemini Multimodal Vision and LLM fallback hierarchy
+- Structured Google Gemini multimodal and text analysis through an eight-model Flash fallback hierarchy ending at `gemini-3.8-flash`
 - PDF stream extraction with PdfPig and chunked summarization
 - Relational result caching eliminating duplicate AI inference costs
 - Dual Cloudflare Edge deployments: Cloudflare Pages (`aws-file-analyzer.pages.dev`) and Cloudflare Workers (`aws-file-analyzer.bradshin231.workers.dev`)
-- Automated CI/CD: 54-test regression matrix (.NET xUnit, Vitest, Playwright E2E) and secretless Azure OIDC deployment
+- Automated CI/CD gates on 55 xUnit/Vitest cases, with a 10-scenario local Playwright suite, Cloudflare Pages deployment, and secretless Azure OIDC deployment
 
 Future work is tracked in [`future_work.md`](future_work.md), while this document should be updated when a new architectural phase is completed or an existing phase changes materially.
-

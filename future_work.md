@@ -22,6 +22,7 @@ A visual library and interactive map for uploaded images have been shipped live 
 - Build upload and analysis history pages with pagination and clear processing states.
 - Add user-facing retry controls when Gemini rate limits trigger the model fallback hierarchy.
 - Stream longer analysis responses and show which fallback model completed the request.
+- Instrument Gemini usage metadata and evaluate context caching. Gemini 2.5+ models already receive implicit caching automatically for sufficiently large repeated prompt prefixes; explicit caches would require moving relevant calls from the current OpenAI-compatible endpoint to Gemini's native `generateContent` API. Adopt explicit caching only for repeated large shared context—not unique one-off file analyses—and compare cache-hit tokens, latency, and cost first.
 - Add account settings, token revocation, password reset, and optional passkey authentication.
 - Improve mobile layouts and add dark/light theme preferences.
 
@@ -50,10 +51,9 @@ Explore a Chrome extension that brings analysis into supported photo websites wi
 
 ## Engineering Improvements
 
-- [x] **Guest Session Claiming**: Support seamless preservation and account claiming for guest demo files and AI analysis upon registration or sign-in, protected by S3 bucket allowlist validation on `POST /api/Security/claim-guest-uploads`.
-- Add explicit user ownership columns to `FileUploadHistory` and `FileAnalysisResult` SQL schemas when transitioning to multi-tenant user history isolation.
+- [x] **Guest Session Handoff**: Preserve staged guest file URLs and AI results in browser `localStorage`, restore them after registration or sign-in, and validate submitted URLs against the configured S3 bucket on `POST /api/Security/claim-guest-uploads`.
+- Add explicit user and guest-session ownership columns to `FileUploadHistory` and `FileAnalysisResult`, filter every history query by owner, and turn the current handoff acknowledgement into a transactional, durable claim operation.
 - Add API integration tests for authentication, authorization, upload validation, and database persistence.
-
 - Add safe cleanup for test data and S3 objects created by authenticated end-to-end tests.
 - Add OpenTelemetry traces spanning the Cloudflare frontend, Azure API, Azure SQL, AWS S3, and Gemini calls.
 - Add budgets and alerts for Azure Monitor ingestion, AWS S3 storage/egress, and Gemini usage.
@@ -63,6 +63,8 @@ Explore a Chrome extension that brings analysis into supported photo websites wi
 ## Deployment Improvements
 
 - Consolidate the duplicate Cloudflare Pages and Worker frontends behind one custom production domain after choosing the long-term Cloudflare hosting model.
+- Add a disaster-recovery copy of S3 objects in Cloudflare R2. Start with a one-way scheduled copy or inventory reconciliation keyed by the existing S3 object key, then document retention and test restoration. R2's S3-compatible API makes a future storage-provider switch feasible, but a continuously consistent dual-write/failover path should be treated as a separate, more complex phase.
+- Add a portable database recovery target. Prefer Neon or Supabase Postgres over Cloudflare D1 for this .NET/EF Core relational schema, maintain reviewed PostgreSQL migrations, export Azure SQL data on a schedule, and test restoration. D1 is SQLite-based and Worker-oriented, so using it would be a database migration/rewrite rather than a drop-in Azure SQL backup.
 - Add preview deployments for pull requests with isolated test configuration.
 - Add a custom domain and production-grade App Service tier if the project receives sustained traffic.
 - Restrict Azure SQL networking with private connectivity when moving beyond the free portfolio architecture.

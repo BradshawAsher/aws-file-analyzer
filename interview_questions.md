@@ -7,7 +7,7 @@ This guide contains the exact talking points, architectural explanations, edge c
 
 ## 🎯 1. The 30-Second Elevator Pitch
 
-> *"AWS File Analyzer is an end-to-end cloud platform built with ASP.NET Core 8 and React that automates file ingestion, multimodal AI analysis, and audio synthesis. When a user uploads documents or photos, the backend streams them to private AWS S3 buckets, generates secure Pre-Signed URLs, and routes them through specialized analysis engines. For images, we use Google Gemini multimodal vision to detect landmarks, weather, and geolocation with confidence scores. For PDFs, we use PdfPig and a 4KB chunking algorithm to extract structured summaries. To optimize performance and eliminate redundant LLM token costs, we implemented an Azure SQL caching layer and integrated browser-native Web Speech API for interactive audio playback."*
+> *"AWS File Analyzer is an end-to-end cloud platform built with ASP.NET Core 8 and React that automates file ingestion, multimodal AI analysis, and audio synthesis. When a user uploads documents or photos, the backend streams them to a private AWS S3 bucket, generates secure pre-signed URLs, and routes them through specialized analysis engines. For images, a cost-first Google Gemini Flash fallback hierarchy detects landmarks, weather, and geolocation with confidence scores. For PDFs, PdfPig extracts text and a 4,000-character hierarchical chunking pipeline creates structured summaries. Azure SQL caches analysis results, while the browser's Web Speech API provides interactive audio playback."*
 
 ---
 
@@ -20,28 +20,28 @@ This guide contains the exact talking points, architectural explanations, edge c
 3. **Metadata Logging**: File metadata (name, extension, size, load time, presigned URL) is saved to the `FileUploadHistory` table via Entity Framework Core using the Unit of Work pattern.
 4. **Analysis Dispatch**: The client triggers `POST /api/ai/GeminiSummary` passing the `fileUrl`; legacy route aliases remain available only for backward compatibility.
 5. **MIME Routing & Cache Check**: `FileAnalysisService` first queries the `FileAnalysisResult` table in Azure SQL. If a record exists (Cache Hit), it returns the cached JSON immediately. If not (Cache Miss), it inspects the HTTP `Content-Type` header and delegates to `ImageService`, `PdfService`, or `TextService`.
-6. **AI Analysis**: For images, Google Gemini (`gemini-3.1-flash-lite`) processes the image data URI. For PDFs, `PdfPig` extracts the text stream and chunks it before calling Gemini.
+6. **AI Analysis**: For images, the shared Gemini fallback client starts with `gemini-3.1-flash-lite` and can progress through configured Flash models up to `gemini-3.8-flash`. For PDFs, `PdfPig` extracts the text stream and chunks it before calling the same client.
 7. **Persistence & Playback**: The JSON analysis is saved to Azure SQL and returned to the React frontend, which feeds the summary/caption to `AiVoicePlayer` via the Web Speech API (`SpeechSynthesisUtterance`).
 
 ---
 
 ### Q2: Why and how did you migrate from OpenAI to Google Gemini?
 **Answer**:
-* **Why**: OpenAI API keys and older models periodically deprecate or expire, creating operational overhead and higher token costs. Google Gemini provides cost-efficient multimodal models, low latency, and large context windows suitable for document and image analysis.
+* **Why**: The original OpenAI credential and model configuration no longer fit the deployment. Google Gemini provided a cost-conscious multimodal option, and the migration was designed around a configurable fallback chain instead of another single hard-coded model.
 * **How (Provider Migration Pattern)**:
   1. **OpenAI Compatibility Layer**: Google Gemini provides an OpenAI-compatible endpoint (`https://generativelanguage.googleapis.com/v1beta/openai/`). Rather than refactoring every single service call, we re-pointed the .NET `OpenAIClientOptions.Endpoint` to Gemini's gateway.
-  2. **Image Inlining Optimization**: While OpenAI accepted remote image URLs, Gemini strictly requires inline base64 Data URIs for remote assets for security. We enhanced `ImageService` to download the S3 pre-signed image stream and pass `ChatMessageContentPart.CreateImagePart(BinaryData, mediaType)`, which serializes seamlessly to Data URIs.
+  2. **Image Inlining**: To make image input work consistently through Gemini's OpenAI-compatible endpoint, `ImageService` downloads the private S3 object through its pre-signed URL and passes `ChatMessageContentPart.CreateImagePart(BinaryData, mediaType)` as an inline image part.
   3. **Backward Compatibility**: We kept existing controller route endpoints (`/OpenAISummary`, `/OpenAIChat`) while adding clean aliases (`/GeminiSummary`, `/GeminiChat`), preventing client-side breakage.
   4. **Credential Security**: Credentials were moved into ASP.NET Core User Secrets (`Gemini:ApiKey`), ensuring no secret keys are checked into source control.
   5. **Rate-Limit Resilience**: A shared Gemini client starts with low-cost Flash-Lite models, moves through a configurable model hierarchy on `429` or unavailable-model responses, and uses bounded exponential backoff with jitter for timeouts and transient `5xx` errors. Authentication and malformed-request failures are not retried.
 
 ---
 
-### Q3: Why did you use S3 Pre-Signed URLs instead of streaming binary files directly through your API?
+### Q3: Why did you use private S3 objects and pre-signed URLs?
 **Answer**:
-* **Memory & Throughput**: Streaming large images or multi-page PDFs through backend web servers consumes significant server RAM and thread pool capacity. Pre-signed URLs offload file hosting and download bandwidth directly to AWS S3.
-* **Security**: The S3 bucket remains completely private (no public access). Pre-signed URLs are cryptographically signed with temporary expiration windows (60 minutes), enforcing least privilege.
-* **Separation of Concerns**: The API server acts as an orchestrator rather than a heavy binary proxy.
+* **Durable Storage**: S3 separates file persistence from the Azure App Service filesystem and gives every analysis a stable object key.
+* **Security**: The bucket remains private. Pre-signed URLs provide time-limited access for backend retrieval and optional browser viewing without exposing AWS credentials.
+* **Trade-off**: Uploads still pass through the API, and image analysis buffers bounded content before sending it to Gemini. A future direct-to-S3 upload flow could reduce API bandwidth further.
 
 ---
 
@@ -49,7 +49,7 @@ This guide contains the exact talking points, architectural explanations, edge c
 **Answer**:
 * **Problem**: Invoking multimodal LLM endpoints repeatedly for the same uploaded assets introduces latency (1–3 seconds per request) and racks up expensive API token fees.
 * **Solution**: In `FileAnalysisService`, before sending any request to the AI model, we query the `FileAnalysisResult` table joined on the unique file URL.
-* **Result**: Repeat analysis requests return in under 10ms with zero AI inference cost.
+* **Result**: A matching exact-URL cache hit avoids another AI inference call. Latency depends on Azure SQL wake state and network conditions, so the implementation does not promise a fixed sub-10ms response.
 
 ---
 
@@ -58,7 +58,7 @@ This guide contains the exact talking points, architectural explanations, edge c
 * We implemented a **two-tier chunking strategy** in `PdfService.cs`:
   1. We extract text streams using `UglyToad.PdfPig`.
   2. If the text length is under `12,000` characters, we send it in a single prompt.
-  3. If it exceeds `12,000` characters, we partition the text into `4,000`-byte chunks using `.Chunk(4000)`.
+  3. If it exceeds `12,000` characters, we partition the text into `4,000`-character chunks using `.Chunk(4000)`.
   4. Each chunk is summarized individually by the LLM into key points.
   5. Finally, we concatenate the partial summaries and run an aggregation prompt that synthesizes a cohesive JSON response with overall caption, summary, keywords, and sentiment.
 
@@ -111,9 +111,11 @@ This guide contains the exact talking points, architectural explanations, edge c
 
 ### Q11: *"If you had another two weeks to work on this, what would you build?"*
 **Answer**:
-1. **Interactive Geolocation Map**: Plot image landmark coordinates directly onto an interactive Mapbox/Leaflet UI to create an automated travel photo timeline.
-2. **Vector Embeddings & Semantic Search**: Index parsed PDF and text summaries using Gemini Embeddings (`models/gemini-embedding-2`) and store them in a vector database (e.g. pgvector or Azure AI Search) for natural language semantic search across all uploaded files.
-3. **Connected Photo Workflow**: Import selected photos from Google Photos or OneDrive, then explore a Chrome extension that can send a photo to the analyzer from a supported website and display its caption in a side panel.
+The interactive Leaflet gallery/map is already shipped, so the next work would deepen data ownership and resilience rather than repeat that feature:
+
+1. **Durable Multi-Tenant Ownership**: Add user and guest-session ownership columns, filter all history queries by owner, and make guest-to-account claiming a transactional database operation with cleanup for abandoned guest objects.
+2. **Portable Disaster Recovery**: Mirror S3 objects to Cloudflare R2 and maintain a tested Azure SQL export/restore path to Neon or Supabase Postgres. I would call these recovery targets—not automatic failover—until consistency checks and restore drills prove them.
+3. **Smarter AI Efficiency and Retrieval**: Measure Gemini implicit cache hits, evaluate native explicit context caching only for repeated large context, and add Gemini embeddings with pgvector or Azure AI Search for semantic search across analyzed files.
 
 ---
 
@@ -136,13 +138,14 @@ This guide contains the exact talking points, architectural explanations, edge c
 
 ---
 
-### Q14: *"How did you achieve a \$0/month operating cost while running live multi-cloud enterprise workloads?"*
+### Q14: *"How did you control cost while running a live multi-cloud portfolio workload?"*
 **Answer**:
-* **Azure App Service (F1 Linux)**: Utilizes Azure's perpetually free tier allocation for compute (60 CPU minutes/day).
-* **Azure SQL Serverless (`GP_S_Gen5_1`)**: Configured with a 60-minute **auto-pause** delay. Compute scales to zero when no transactions are executing, staying within the Azure for Students 100,000 vCore-second free allowance.
-* **Cloudflare Pages**: Free tier offers unlimited bandwidth, instant SSL, and worldwide edge CDN delivery at \$0.
-* **AWS S3**: Micro-tier storage costs pennies at portfolio demo volume.
-* **Google Gemini**: Utilizes the free-tier API quotas with model fallback to ensure high uptime at \$0 cost.
+* **Azure App Service (F1 Linux)**: Uses the free SKU and its quota rather than an always-on paid plan.
+* **Azure SQL Serverless (`GP_S_Gen5_1`)**: Uses a 60-minute auto-pause delay and available Azure for Students/free grants to reduce idle compute cost.
+* **Cloudflare Pages**: Serves the static SPA from the free tier with managed SSL and edge caching.
+* **AWS S3**: Stores only portfolio-scale objects, while private access and guest limits reduce abuse.
+* **Google Gemini**: Starts with Flash-Lite models and enforces guest request limits to protect the API quota. The fallback chain improves availability but can consume additional requests.
+* **Caveat**: The target is near-zero cost, not a guarantee; provider pricing, expired credits, storage, egress, and excess usage can create charges.
 
 ---
 
