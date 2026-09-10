@@ -139,7 +139,7 @@ function getCategoryColor(category) {
   return "bg-slate-100 text-slate-800 border-slate-200";
 }
 
-export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handleLogout }) {
+export default function GalleryView({ onBackToAnalyzer, onGoToLanding, onSignIn, isGuest, handleLogout }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -407,7 +407,15 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {onGoToLanding && (
+            <button
+              onClick={onGoToLanding}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+            >
+              🏠 Landing Page
+            </button>
+          )}
           <button
             onClick={onBackToAnalyzer}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition"

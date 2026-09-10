@@ -49,13 +49,20 @@ describe("GalleryView Component", () => {
     apiClient.get.mockResolvedValueOnce({ data: mockItems });
 
     const onBack = vi.fn();
-    render(<GalleryView onBackToAnalyzer={onBack} />);
+    const onLanding = vi.fn();
+    render(<GalleryView onBackToAnalyzer={onBack} onGoToLanding={onLanding} />);
 
     // Wait for items to load
     expect(await screen.findByText(/Photo Gallery & Geolocation Map/i)).toBeInTheDocument();
     expect(await screen.findByText("Eiffel Tower")).toBeInTheDocument();
     expect(screen.getAllByText("serverless_guide.pdf")[0]).toBeInTheDocument();
     expect(screen.getByText(/Paris, France/i)).toBeInTheDocument();
+
+    // Test Landing Page button
+    const landingBtn = screen.getByRole("button", { name: /Landing Page/i });
+    expect(landingBtn).toBeInTheDocument();
+    fireEvent.click(landingBtn);
+    expect(onLanding).toHaveBeenCalledTimes(1);
 
     // Test back button
     fireEvent.click(screen.getByRole("button", { name: /Back to Analyzer/i }));

@@ -99,5 +99,24 @@ describe("App guest session", () => {
     expect(await screen.findByRole("heading", { name: /^Log In$/i })).toBeInTheDocument();
     expect(window.location.pathname).toBe("/login");
   });
+
+  test("navigates to landing page when clicking Landing Page button from analyzer", async () => {
+    apiClient.post.mockResolvedValueOnce({
+      data: { accessToken: "guest-jwt", expiresInSeconds: 900, isGuest: true },
+    });
+
+    render(<App />);
+
+    // Start guest session to reach analyzer
+    fireEvent.click(await screen.findByRole("button", { name: /Try the live analyzer as a guest/i }));
+    expect(await screen.findByRole("button", { name: /Landing Page/i })).toBeInTheDocument();
+
+    // Click Landing Page button
+    fireEvent.click(screen.getByRole("button", { name: /Landing Page/i }));
+
+    // Should return to landing page with Open Analyzer button available
+    expect(await screen.findByRole("button", { name: /Open Analyzer/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/");
+  });
 });
 

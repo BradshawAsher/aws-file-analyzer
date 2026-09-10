@@ -35,7 +35,16 @@ const stack = [
   ["Gemini", "Multimodal analysis with model fallback"],
 ];
 
-export default function GuestLanding({ onLogin, onTryGuest, onViewGallery, isStartingGuest = false, guestError = "" }) {
+export default function GuestLanding({
+  onLogin,
+  onTryGuest,
+  onViewGallery,
+  onGoToAnalyzer,
+  onLogout,
+  isLoggedIn = false,
+  isStartingGuest = false,
+  guestError = ""
+}) {
   const [selectedSample, setSelectedSample] = useState(samples[0]);
   const swaggerUrl = `${API_BASE_URL}/swagger/index.html`;
 
@@ -67,13 +76,36 @@ export default function GuestLanding({ onLogin, onTryGuest, onViewGallery, isSta
             >
               API Docs ↗
             </a>
-            <button
-              type="button"
-              onClick={onLogin}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-blue-50"
-            >
-              Log in
-            </button>
+            {isLoggedIn ? (
+              <div className="flex items-center gap-2">
+                {onGoToAnalyzer && (
+                  <button
+                    type="button"
+                    onClick={onGoToAnalyzer}
+                    className="rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-500"
+                  >
+                    🚀 Open Analyzer
+                  </button>
+                )}
+                {onLogout && (
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="rounded-lg px-3 py-2 text-sm font-semibold text-rose-300 transition hover:bg-white/10 hover:text-white"
+                  >
+                    Log out
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onLogin}
+                className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-blue-50"
+              >
+                Log in
+              </button>
+            )}
           </div>
         </nav>
 
@@ -89,14 +121,24 @@ export default function GuestLanding({ onLogin, onTryGuest, onViewGallery, isSta
               Upload images, PDFs, and text to private AWS S3 storage, process them with Google Gemini, and persist results through a .NET API backed by Azure SQL.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={onTryGuest}
-                disabled={isStartingGuest}
-                className="rounded-xl bg-blue-500 px-6 py-3 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
-              >
-                {isStartingGuest ? "Starting guest session..." : "Try the live analyzer as a guest"}
-              </button>
+              {isLoggedIn && onGoToAnalyzer ? (
+                <button
+                  type="button"
+                  onClick={onGoToAnalyzer}
+                  className="rounded-xl bg-blue-500 px-6 py-3 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
+                >
+                  🚀 Open Live Analyzer
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onTryGuest}
+                  disabled={isStartingGuest}
+                  className="rounded-xl bg-blue-500 px-6 py-3 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
+                >
+                  {isStartingGuest ? "Starting guest session..." : "Try the live analyzer as a guest"}
+                </button>
+              )}
               {onViewGallery && (
                 <button
                   type="button"

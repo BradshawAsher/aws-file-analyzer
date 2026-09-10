@@ -28,4 +28,30 @@ describe("GuestLanding", () => {
     expect(screen.getByText("research-notes.pdf")).toBeInTheDocument();
     expect(screen.getByText(/compares managed cloud storage patterns/i)).toBeInTheDocument();
   });
+
+  test("renders authenticated navigation when user is logged in", () => {
+    const onGoToAnalyzer = vi.fn();
+    const onLogout = vi.fn();
+
+    render(
+      <GuestLanding
+        isLoggedIn={true}
+        onGoToAnalyzer={onGoToAnalyzer}
+        onLogout={onLogout}
+      />
+    );
+
+    const openBtn = screen.getByRole("button", { name: /Open Analyzer/i });
+    expect(openBtn).toBeInTheDocument();
+    fireEvent.click(openBtn);
+    expect(onGoToAnalyzer).toHaveBeenCalledTimes(1);
+
+    const heroBtn = screen.getByRole("button", { name: /Open Live Analyzer/i });
+    expect(heroBtn).toBeInTheDocument();
+
+    const logoutBtn = screen.getByRole("button", { name: /Log out/i });
+    expect(logoutBtn).toBeInTheDocument();
+    fireEvent.click(logoutBtn);
+    expect(onLogout).toHaveBeenCalledTimes(1);
+  });
 });

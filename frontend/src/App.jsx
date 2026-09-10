@@ -33,7 +33,7 @@ export default function App() {
     if (isJwtUsable(token)) {
       setIsLoggedIn(true);
       setSessionType(getJwtRole(token) === "Guest" ? "guest" : "user");
-      if (route.view === "home" || route.view === "auth") {
+      if (localStorage.getItem('pending_guest_claim') || route.view === "auth") {
         navigateTo("/analyzer", { replace: true });
         setCurrentView("analyzer");
       } else {
@@ -152,7 +152,14 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-100 p-4 sm:p-6">
         <GalleryView
-          onBackToAnalyzer={() => navigateTo("/analyzer")}
+          onBackToAnalyzer={() => {
+            setCurrentView("analyzer");
+            navigateTo("/analyzer");
+          }}
+          onGoToLanding={() => {
+            setCurrentView("home");
+            navigateTo("/");
+          }}
           onSignIn={handleSignInFromGuest}
           isGuest={sessionType === "guest"}
           handleLogout={handleLogout}
@@ -168,13 +175,28 @@ export default function App() {
         <div className="w-full max-w-xl mb-4 flex items-center justify-between bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigateTo("/analyzer")}
+              onClick={() => {
+                setCurrentView("home");
+                navigateTo("/");
+              }}
+              className="text-xs font-semibold px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
+            >
+              🏠 Landing Page
+            </button>
+            <button
+              onClick={() => {
+                setCurrentView("analyzer");
+                navigateTo("/analyzer");
+              }}
               className="text-xs font-bold px-3 py-1.5 rounded-xl bg-blue-600 text-white shadow-sm"
             >
               🚀 Analyzer
             </button>
             <button
-              onClick={() => navigateTo("/gallery")}
+              onClick={() => {
+                setCurrentView("gallery");
+                navigateTo("/gallery");
+              }}
               className="text-xs font-semibold px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
             >
               🗺️ Photo Gallery & Map
@@ -203,7 +225,10 @@ export default function App() {
           handleLogout={handleLogout}
           isGuest={sessionType === "guest"}
           onSignIn={handleSignInFromGuest}
-          onViewGallery={() => navigateTo("/gallery")}
+          onViewGallery={() => {
+            setCurrentView("gallery");
+            navigateTo("/gallery");
+          }}
           setAnalysisText={setAnalysisText}
           cleanAnalysisText={cleanAnalysisText}
         />
@@ -221,7 +246,10 @@ export default function App() {
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 p-6">
         <AuthContainer
           onLoginSuccess={handleSuccessfulLogin}
-          onBack={() => navigateTo("/")}
+          onBack={() => {
+            setCurrentView("home");
+            navigateTo("/");
+          }}
         />
       </div>
     );
@@ -229,9 +257,18 @@ export default function App() {
 
   return (
     <GuestLanding
-      onLogin={() => navigateTo("/login")}
+      onLogin={() => {
+        setCurrentView("auth");
+        navigateTo("/login");
+      }}
       onTryGuest={handleGuestSession}
       onViewGallery={handleOpenGalleryFromLanding}
+      onGoToAnalyzer={() => {
+        setCurrentView("analyzer");
+        navigateTo("/analyzer");
+      }}
+      onLogout={handleLogout}
+      isLoggedIn={isLoggedIn}
       isStartingGuest={isStartingGuest}
       guestError={guestError}
     />
