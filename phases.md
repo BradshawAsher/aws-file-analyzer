@@ -75,19 +75,31 @@ A public guest landing page and short-lived guest JWT flow were added so recruit
 
 **Outcome:** The project became a live, recruiter-friendly multi-cloud portfolio application with safer production boundaries and repeatable regression checks.
 
+## Phase 9: Guest claiming, Google OAuth, and full-stack CI/CD automation
+
+**Date:** September 10, 2026
+
+Added seamless guest history claiming (`POST /api/Security/claim-guest-uploads`) and client state handoff so visitors testing the live demo can register or sign in without losing their uploaded files, AI analyses, or voice players. Implemented one-tap Google OAuth 2.0 with automatic account provisioning and immediate JWT session issuance upon standard registration.
+
+Expanded test coverage to 54 automated tests across backend xUnit, Vite/Vitest component tests, and a 7-scenario Playwright headless browser E2E suite. Automated continuous deployment to both Cloudflare Pages (`aws-file-analyzer.pages.dev`) via Wrangler and Azure App Service via secretless GitHub OIDC.
+
+**Outcome:** A seamless, production-ready onboarding experience for recruiters and visitors with complete end-to-end regression validation and automated multi-cloud deployment.
+
 ## Current state
 
 The project currently combines:
 
-- Public guest overview plus authenticated React 19 file-analysis workflows
-- An ASP.NET Core 8 API
-- AWS S3 file storage
-- Azure SQL and EF Core persistence
-- JWT authentication with BCrypt password hashing
-- Structured Google Gemini analysis with model fallback for images and text-based files
-- PDF extraction and chunked summarization
-- Cached analysis results
-- Centralized exception handling, rate limiting, upload validation, and S3 URL allowlisting
-- GitHub Actions regression tests and live public smoke checks
+- Public guest landing page, demo live analyzer, and seamless account claiming upon sign-in/registration
+- Dual authentication: BCrypt salted credentials and Google OAuth 2.0 with automated user provisioning
+- Immediate auto-login token issuance upon registration (zero re-login friction)
+- An ASP.NET Core 8 API on Azure App Service with Azure Key Vault Managed Identity
+- AWS S3 private object storage with 60-minute presigned URLs and S3 URL allowlisting
+- Azure SQL Serverless persistence with EF Core Unit of Work and 60-minute auto-pause
+- Structured Google Gemini Multimodal Vision and LLM fallback hierarchy
+- PDF stream extraction with PdfPig and chunked summarization
+- Relational result caching eliminating duplicate AI inference costs
+- Dual Cloudflare Edge deployments: Cloudflare Pages (`aws-file-analyzer.pages.dev`) and Cloudflare Workers (`aws-file-analyzer.bradshin231.workers.dev`)
+- Automated CI/CD: 54-test regression matrix (.NET xUnit, Vitest, Playwright E2E) and secretless Azure OIDC deployment
 
 Future work is tracked in [`future_work.md`](future_work.md), while this document should be updated when a new architectural phase is completed or an existing phase changes materially.
+

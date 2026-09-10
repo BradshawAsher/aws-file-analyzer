@@ -90,6 +90,7 @@ flowchart TD
 
 * **🔒 End-to-End JWT Authentication**: Secure user registration and login with BCrypt password hashing, bearer token authorization, and token persistence.
 * **🧪 Protected Guest Demo**: Short-lived, non-persistent guest JWTs let recruiters run one real file through S3 and Gemini without registering; tighter upload and hourly request limits protect the free-tier services.
+* **🔄 Seamless Guest History Claiming**: Visitors can test the analyzer as a guest, then sign in or register with zero loss of progress—all guest files, Gemini analyses, and audio players are claimed and hydrated directly into their account.
 * **☁️ AWS S3 Cloud Ingestion**: Reliable direct streaming to Amazon S3 buckets with time-limited pre-signed URLs (60-minute TTL) for secure access delegation.
 * **👁️ Multimodal Image Intelligence**: Powered by Google Gemini (`gemini-3.1-flash-lite`), providing geolocation estimation, landmark identification, weather inference, category tagging, confidence scoring, and justification strings.
 * **📄 Chunked PDF & Document Summarization**: Binary stream extraction using `PdfPig`, intelligent text-chunking (`4000` byte windows) for large multi-page documents, and hierarchical summary aggregation.
@@ -135,9 +136,11 @@ flowchart TD
 
 ### Security & Authentication
 * `POST /api/Security/guest-session` - Issue a non-persistent 15-minute Guest JWT for the rate-limited live demo.
+* `POST /api/Security/claim-guest-uploads` - Associate pre-signed S3 file URLs generated during a guest demo session into an authenticated user's account with bucket allowlist validation.
 * `POST /api/Security/register` - Register a new user with BCrypt-hashed password and receive immediate access tokens (auto-login).
 * `POST /api/Security/login` - Authenticate credentials and receive Access & Refresh JWT tokens.
 * `POST /api/Security/google-login` - Authenticate via Google ID Token (OAuth 2.0) with automated user registration and JWT token issuance.
+
 
 ### File & AI Analysis Endpoints
 * `POST /api/ai/AwsFileUpload` (or `/api/ai/UploadFiles`) - Upload up to five supported multipart files to AWS S3 concurrently, persist metadata safely, and return 60-minute pre-signed URLs.
@@ -223,6 +226,10 @@ See [`future_work.md`](future_work.md) for the detailed product and engineering 
 
 ## 🚢 Deployment Automation
 
-Every push to `main` runs the regression workflow. A successful push then deploys the .NET API to Azure App Service through secretless GitHub OIDC. Cloudflare Workers Builds independently builds and deploys the Vite frontend from the same Git commit.
+Every push to `main` executes continuous integration and multi-cloud deployment workflows:
 
-The established `aws-file-analyzer.pages.dev` project remains a separate direct-upload deployment. Its GitHub deployment job is prepared but disabled until the repository has a scoped `CLOUDFLARE_API_TOKEN`; enable it by setting the `PAGES_DEPLOY_ENABLED` repository variable to `true` after adding that secret.
+1. **Regression & E2E Validation** ([`.github/workflows/regression.yml`](.github/workflows/regression.yml)): Runs all 25 .NET xUnit tests, all 17 Vite/Vitest component tests, and 7 Playwright browser scenarios across both guest and authenticated user journeys.
+2. **Azure App Service Deployment** ([`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)): Deploys the .NET 8 API to Azure Linux App Service using secretless GitHub OpenID Connect (OIDC) federated credentials (`azure/login@v2`). No permanent Azure passwords or service principal secrets are stored in GitHub repository secrets.
+3. **Cloudflare Pages Edge Delivery** ([`https://aws-file-analyzer.pages.dev`](https://aws-file-analyzer.pages.dev)): Continuous deployment is fully automated via GitHub Actions using Cloudflare Wrangler (`cloudflare/wrangler-action@v3`) with repository secret `CLOUDFLARE_API_TOKEN` and variable `PAGES_DEPLOY_ENABLED: true`.
+4. **Cloudflare Workers Builds** ([`https://aws-file-analyzer.bradshin231.workers.dev`](https://aws-file-analyzer.bradshin231.workers.dev)): Connected directly to the GitHub repository, providing an independent, high-availability edge static asset distribution layer.
+

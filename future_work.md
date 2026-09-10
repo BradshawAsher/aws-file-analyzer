@@ -50,8 +50,10 @@ Explore a Chrome extension that brings analysis into supported photo websites wi
 
 ## Engineering Improvements
 
-- Add explicit user ownership to upload and analysis records, then support claiming a guest session after registration. Local storage can preserve a guest-facing draft history, but the server must validate ownership before attaching cloud records to an account.
+- [x] **Guest Session Claiming**: Support seamless preservation and account claiming for guest demo files and AI analysis upon registration or sign-in, protected by S3 bucket allowlist validation on `POST /api/Security/claim-guest-uploads`.
+- Add explicit user ownership columns to `FileUploadHistory` and `FileAnalysisResult` SQL schemas when transitioning to multi-tenant user history isolation.
 - Add API integration tests for authentication, authorization, upload validation, and database persistence.
+
 - Add safe cleanup for test data and S3 objects created by authenticated end-to-end tests.
 - Add OpenTelemetry traces spanning the Cloudflare frontend, Azure API, Azure SQL, AWS S3, and Gemini calls.
 - Add budgets and alerts for Azure Monitor ingestion, AWS S3 storage/egress, and Gemini usage.

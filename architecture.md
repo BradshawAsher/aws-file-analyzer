@@ -94,16 +94,18 @@ flowchart TB
 ### 3.1 Presentation Layer (Frontend)
 * **Framework**: React 19 with Vite 8, Tailwind CSS v3, Axios.
 * **Responsibilities**:
-  * `GuestLanding.js`: Presents a public project overview with sample analysis and starts a restricted, short-lived guest session for the live analyzer.
-  * `LoginForm.js` / `RegisterForm.js`: Captures user credentials and acquires JWT token.
-  * `FileUploadAnalyze.js`: Dispatches multipart uploads and triggers file analysis.
-  * `AiVoicePlayer.js`: Wraps browser `window.speechSynthesis` and `SpeechSynthesisUtterance` to read AI-generated summaries aloud.
+  * `GuestLanding.jsx`: Presents a public project overview with sample analysis and starts a restricted, short-lived guest session for the live analyzer.
+  * `LoginForm.jsx` / `RegisterForm.jsx`: Captures user credentials and acquires JWT token, with support for Google OAuth 2.0 one-tap login and immediate auto-login upon registration.
+  * `FileUploadAnalyze.jsx`: Dispatches multipart uploads, triggers multimodal AI analysis, stages guest activity in `pending_guest_claim`, and hydrates claimed sessions upon authentication.
+  * `AiVoicePlayer.jsx`: Wraps browser `window.speechSynthesis` and `SpeechSynthesisUtterance` to read AI-generated summaries aloud.
 
 ### 3.2 Gateway & Controllers (.NET 8 Web API)
 * **`SecurityController`**:
   * `POST /api/Security/guest-session`: Issues a short-lived Guest JWT without inserting an account into Azure SQL.
-  * `POST /api/Security/register`: Salted password hashing via `BCrypt.Net.BCrypt.HashPassword`.
+  * `POST /api/Security/claim-guest-uploads`: Validates S3 bucket ownership and claims pre-signed URLs generated during guest sessions into an authenticated user's account.
+  * `POST /api/Security/register`: Salted password hashing via `BCrypt.Net.BCrypt.HashPassword` with automatic JWT issuance.
   * `POST /api/Security/login`: Verifies passwords via `BCrypt.Net.BCrypt.Verify` and issues signed HMAC-SHA256 JWT access and refresh tokens.
+  * `POST /api/Security/google-login`: Validates Google ID tokens via `GoogleJsonWebSignature`, provisions new users automatically if non-existent, and issues JWT access tokens.
 * **`OpenAIAwsController`** (canonical Swagger prefix `/api/ai`; legacy prefixes retained for compatibility):
   * `POST /api/ai/AwsFileUpload`: Validates up to five supported files for accounts or one file up to 2 MB for guests, pushes them to S3, and returns generated pre-signed URLs.
   * `POST /api/ai/GeminiSummary`: Validates configured-bucket URLs, checks the SQL cache, delegates to the analyzer service, and returns structured JSON.
@@ -112,7 +114,8 @@ flowchart TB
   * `GET /api/ai/ListAnalysisResults`: Joins `FileUploadHistory` with `FileAnalysisResult`.
   * `POST /api/ai/GeminiChat`: Provides general text completion through the configured Gemini fallback chain.
 
-Guest JWTs can call only the upload and analysis operations. Bucket listings, account history, saved-result listings, and general chat require a registered-user role.
+Guest JWTs can call only the upload and analysis operations. Bucket listings, account history, saved-result listings, general chat, and guest claim operations require a registered-user role.
+
 
 ### 3.3 Domain Services & AI Pipelines
 * **`FileUploadService`**: Manages AWS S3 `PutObjectAsync` and creates 60-minute pre-signed URLs via `GetPreSignedUrlRequest`.
@@ -176,7 +179,7 @@ Guest JWTs can call only the upload and analysis operations. Bucket listings, ac
 ### 6.2 Zero-Trust Security Architecture
 1. **Passwordless Managed Identity**: The App Service uses a System-Assigned Managed Identity (`1432c434-a0a0-4294-8ebd-7a207e84d298`) assigned the `Key Vault Secrets User` role. Secrets (`gemini-api-key`, `jwt-key`, `aws-access-key-id`, `aws-secret-access-key`) are referenced using `@Microsoft.KeyVault(...)` syntax and resolved directly into environment variables by Azure without code intervention.
 2. **Database Least Privilege**: Azure SQL data-plane access for the App Service identity is granted explicitly via Entra ID SQL role mappings (`db_datareader`, `db_datawriter`), preventing the need for embedded SQL administrative credentials.
-3. **CORS Boundary**: Kestrel enforces a strict origin policy allowing only `https://aws-file-analyzer.pages.dev` and local development origins, rejecting unapproved third-party web clients.
+3. **CORS Boundary**: Kestrel enforces a strict origin policy allowing `https://aws-file-analyzer.pages.dev`, `https://aws-file-analyzer.bradshin231.workers.dev`, and local development origins, rejecting unapproved third-party web clients.
 
 ### 6.3 Cost Optimization & \$0 Spending Target
 * **App Service**: F1 Free SKU running on Linux container runtime (\$0).
