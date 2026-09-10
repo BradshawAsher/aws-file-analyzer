@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import apiClient from "./apiClient";
+import apiClient, { API_BASE_URL } from "./apiClient";
 import AiVoicePlayer from "./AiVoicePlayer";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -416,6 +416,16 @@ export default function GalleryView({ onBackToAnalyzer, onGoToLanding, onSignIn,
               🏠 Landing Page
             </button>
           )}
+          <a
+            href={`${API_BASE_URL}/swagger/index.html`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+            title="Open Swagger API documentation in a new tab"
+          >
+            <span>📜 Swagger API</span>
+            <span className="text-xs">↗</span>
+          </a>
           <button
             onClick={onBackToAnalyzer}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition"

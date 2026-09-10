@@ -7,6 +7,7 @@ vi.mock("./apiClient", () => ({
   default: {
     get: vi.fn(),
   },
+  API_BASE_URL: "https://localhost:5000",
 }));
 
 describe("GalleryView Component", () => {
@@ -63,6 +64,11 @@ describe("GalleryView Component", () => {
     expect(landingBtn).toBeInTheDocument();
     fireEvent.click(landingBtn);
     expect(onLanding).toHaveBeenCalledTimes(1);
+
+    // Test Swagger API link
+    const swaggerLink = screen.getByRole("link", { name: /Swagger API/i });
+    expect(swaggerLink).toHaveAttribute("target", "_blank");
+    expect(swaggerLink.getAttribute("href")).toContain("/swagger/index.html");
 
     // Test back button
     fireEvent.click(screen.getByRole("button", { name: /Back to Analyzer/i }));

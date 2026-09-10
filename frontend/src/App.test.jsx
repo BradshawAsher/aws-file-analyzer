@@ -111,6 +111,11 @@ describe("App guest session", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Try the live analyzer as a guest/i }));
     expect(await screen.findByRole("button", { name: /Landing Page/i })).toBeInTheDocument();
 
+    // Verify Swagger API link is visible on Analyzer
+    const swaggerLink = screen.getByRole("link", { name: /Swagger API/i });
+    expect(swaggerLink).toHaveAttribute("target", "_blank");
+    expect(swaggerLink.getAttribute("href")).toContain("/swagger/index.html");
+
     // Click Landing Page button
     fireEvent.click(screen.getByRole("button", { name: /Landing Page/i }));
 

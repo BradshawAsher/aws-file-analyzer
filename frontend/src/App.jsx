@@ -4,7 +4,7 @@ import AuthContainer from "./AuthContainer";
 import AiVoicePlayer from "./AiVoicePlayer";
 import GuestLanding from "./GuestLanding";
 import GalleryView from "./GalleryView";
-import apiClient from "./apiClient";
+import apiClient, { API_BASE_URL } from "./apiClient";
 import { getJwtRole, isJwtUsable } from "./tokenUtils";
 import { getRouteFromLocation, navigateTo } from "./router";
 
@@ -203,6 +203,16 @@ export default function App() {
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href={`${API_BASE_URL}/swagger/index.html`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition flex items-center gap-1"
+              title="Open Swagger API documentation in a new tab"
+            >
+              <span>📜 Swagger API</span>
+              <span className="text-[10px]">↗</span>
+            </a>
             {sessionType === "guest" ? (
               <button
                 onClick={handleSignInFromGuest}
