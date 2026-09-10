@@ -43,12 +43,15 @@ export default function App() {
     setIsLoggedIn(true);
     setSessionType("user");
     setCurrentView("analyzer");
-    cleanAnalysisText();
+    if (!localStorage.getItem('pending_guest_claim')) {
+      cleanAnalysisText();
+    }
   };
 
   // Handler for Log Out
   const handleLogout = () => {
     localStorage.removeItem('authToken'); // Clear the stored token
+    localStorage.removeItem('pending_guest_claim');
     setIsLoggedIn(false);
     setSessionType(null);
     setCurrentView("home");
@@ -79,12 +82,11 @@ export default function App() {
     setIsLoggedIn(false);
     setSessionType(null);
     setCurrentView("auth");
-    cleanAnalysisText();
   };
 
   // Show a loading screen while checking for a token
   if (isCheckingToken) {
-      return <div>Loading Application...</div>;
+    return <div>Loading Application...</div>;
   }
 
   if (currentView === "analyzer" && isLoggedIn) {

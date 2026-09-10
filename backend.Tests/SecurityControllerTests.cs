@@ -136,5 +136,28 @@ namespace OpenAiChat.Tests
             Assert.Equal(true, isGuest);
             _mockUnitOfWork.Verify(unit => unit.CompleteAsync(), Times.Never);
         }
+
+        [Fact]
+        public void ClaimGuestUploads_WithEmptyUrls_ReturnsBadRequest()
+        {
+            var result = _controller.ClaimGuestUploads(new ClaimUploadsDto { FileUrls = new List<string>() });
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("No file URLs provided to claim.", badRequest.Value);
+        }
+
+        [Fact]
+        public void ClaimGuestUploads_WithValidUrls_ReturnsOkWithCount()
+        {
+            var dto = new ClaimUploadsDto
+            {
+                FileUrls = new List<string> { "https://example.com/test-file.png" }
+            };
+
+            var result = _controller.ClaimGuestUploads(dto);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var count = okResult.Value?.GetType().GetProperty("claimedCount")?.GetValue(okResult.Value);
+            Assert.Equal(1, count);
+        }
     }
 }
+

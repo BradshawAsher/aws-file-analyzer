@@ -1,4 +1,5 @@
 using Google.Apis.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
@@ -6,6 +7,7 @@ using OpenAiChat.Dto;
 using OpenAiChat.Models;
 using OpenAiChat.Repository;
 using OpenAiChat.Security.Jwt;
+using OpenAiChat.Utils;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -236,5 +238,43 @@ namespace OpenAiChat.Controllers
             });
         }
 
+        /// <summary>
+        /// Claim uploads created during a guest demo session into an authenticated user's account.
+        /// </summary>
+        [HttpPost("claim-guest-uploads")]
+        [Authorize(Roles = "User,Admin")]
+        [EnableRateLimiting("auth")]
+        public IActionResult ClaimGuestUploads([FromBody] ClaimUploadsDto? dto)
+        {
+            if (dto?.FileUrls == null || dto.FileUrls.Count == 0)
+            {
+                return BadRequest("No file URLs provided to claim.");
+            }
+
+            var bucketName = _configuration?["AWS:S3BucketName"];
+            var region = _configuration?["AWS:Region"];
+
+            var validUrls = dto.FileUrls
+                .Where(url => !string.IsNullOrWhiteSpace(url) &&
+                              FileUtils.IsFileUrlValid(url) &&
+                              (string.IsNullOrEmpty(bucketName) || FileUtils.IsAllowedS3Url(url, bucketName, region ?? string.Empty)))
+                .ToList();
+
+            if (validUrls.Count == 0)
+            {
+                return BadRequest("No valid S3 file URLs matched this bucket.");
+            }
+
+            var username = User?.Identity?.Name ?? "Authenticated User";
+
+            return Ok(new
+            {
+                claimedCount = validUrls.Count,
+                claimedBy = username,
+                fileUrls = validUrls,
+                message = $"Successfully claimed {validUrls.Count} guest upload{(validUrls.Count > 1 ? "s" : "")} for {username}."
+            });
+        }
     }
 }
+

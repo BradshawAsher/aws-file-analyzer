@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import apiClient from "./apiClient";
 import AiVoicePlayer from "./AiVoicePlayer";
 
@@ -10,6 +10,37 @@ const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, setAnalys
   const [analyzing, setAnalyzing] = useState(false);
   const [message, setMessage] = useState("");
   const [fileUrls, setFileUrls] = useState([]);
+  const [claimedBanner, setClaimedBanner] = useState("");
+
+  useEffect(() => {
+    if (!isGuest) {
+      const pendingClaimRaw = localStorage.getItem("pending_guest_claim");
+      if (pendingClaimRaw) {
+        try {
+          const pending = JSON.parse(pendingClaimRaw);
+          if (pending && Array.isArray(pending.fileUrls) && pending.fileUrls.length > 0) {
+            setFileUrls(pending.fileUrls);
+            setUploadSuccess(true);
+            if (Array.isArray(pending.analyzeResults) && pending.analyzeResults.length > 0) {
+              setAnalyzeResults(pending.analyzeResults);
+              if (setAnalysisText) {
+                setAnalysisText(pending.analyzeResults[0]);
+              }
+            }
+            if (Array.isArray(pending.fileNames) && pending.fileNames.length > 0) {
+              setFiles(pending.fileNames.map((name) => ({ name })));
+            }
+            setClaimedBanner("🎉 Your guest demo upload and AI analysis were successfully claimed into your account!");
+            apiClient.post("/api/Security/claim-guest-uploads", { fileUrls: pending.fileUrls }).catch(() => {});
+          }
+        } catch (e) {
+          console.error("Failed to restore pending claim", e);
+        } finally {
+          localStorage.removeItem("pending_guest_claim");
+        }
+      }
+    }
+  }, [isGuest, setAnalysisText]);
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -17,6 +48,7 @@ const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, setAnalys
     setUploadSuccess(false);
     setAnalyzeResults([]);
     cleanAnalysisText();
+    setClaimedBanner("");
   };
 
   const handleUpload = async () => {
@@ -24,6 +56,7 @@ const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, setAnalys
     setLoading(true);
     setMessage("");
     cleanAnalysisText();
+    setClaimedBanner("");
 
     try {
       const formData = new FormData();
@@ -42,6 +75,17 @@ const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, setAnalys
         setFileUrls(urls);
         setUploadSuccess(true);
         setMessage(`${urls.length} file${urls.length > 1 ? "s" : ""} uploaded successfully to S3 ✅`);
+
+        if (isGuest) {
+          localStorage.setItem(
+            "pending_guest_claim",
+            JSON.stringify({
+              fileUrls: urls,
+              fileNames: files.map((f) => f.name),
+              analyzeResults: [],
+            })
+          );
+        }
       }
     } catch (err) {
       console.error(err);
@@ -68,6 +112,17 @@ const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, setAnalys
         if (results.length > 0) {
           setAnalysisText(results[0]);
         }
+
+        if (isGuest) {
+          localStorage.setItem(
+            "pending_guest_claim",
+            JSON.stringify({
+              fileUrls: fileUrls,
+              fileNames: files.map((f) => f.name),
+              analyzeResults: results,
+            })
+          );
+        }
       }
     } catch (err) {
       console.error(err);
@@ -85,6 +140,12 @@ const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, setAnalys
           ? "Guest demo: analyze one supported file up to 2 MB through the live S3 and Gemini pipeline"
           : "Select one or multiple files for concurrent AWS S3 upload and parallel Gemini analysis"}
       </p>
+
+      {claimedBanner && (
+        <div className="mb-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900 font-medium">
+          {claimedBanner}
+        </div>
+      )}
 
       {isGuest && (
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">

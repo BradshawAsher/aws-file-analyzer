@@ -98,4 +98,35 @@ test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
     // Should immediately auto-login and show the Multi-File Dashboard
     await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
   });
+
+  test('Guest session transition preserves staged claims into newly registered account', async ({ page }) => {
+    // Start guest session
+    await page.getByRole('button', { name: /Try the live analyzer/i }).click();
+    await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
+
+    // Stage a mock upload in localStorage as if guest uploaded a file
+    await page.evaluate(() => {
+      localStorage.setItem('pending_guest_claim', JSON.stringify({
+        fileUrls: ['https://s3.amazonaws.com/test-bucket/claim-demo.txt'],
+        fileNames: ['claim-demo.txt'],
+        analyzeResults: ['Guest demo summary of claim-demo.txt']
+      }));
+    });
+
+    // Click Sign in from guest analyzer
+    await page.getByRole('button', { name: /^Sign in$/i }).click();
+
+    // Register a new user
+    await page.getByRole('button', { name: 'Register' }).click();
+    const uniqueUser = `claim_${Date.now()}`;
+    await page.locator('#username').fill(uniqueUser);
+    await page.locator('#password').fill('SecurePassword123!');
+    await page.locator('#confirmPassword').fill('SecurePassword123!');
+    await page.locator('button[type="submit"]').click();
+
+    // Verify user is in analyzer and claimed banner is visible
+    await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
+    await expect(page.getByText(/Your guest demo upload and AI analysis were successfully claimed/i)).toBeVisible();
+  });
 });
+
