@@ -18,20 +18,20 @@
 ## 📌 Live Demo & Overview
 
 * **Production Web App:** [https://aws-file-analyzer.pages.dev](https://aws-file-analyzer.pages.dev)
-* **Git-Connected Cloudflare Worker:** [https://aws-file-analyzer.bradshin231.workers.dev](https://aws-file-analyzer.bradshin231.workers.dev)
 * **Backend API Endpoint:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net](https://app-afa-eycaz6z3q3pp4.azurewebsites.net)
 * **Interactive Swagger UI:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net/swagger](https://app-afa-eycaz6z3q3pp4.azurewebsites.net/swagger)
 * **Health Check:** [https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health](https://app-afa-eycaz6z3q3pp4.azurewebsites.net/health)
 
 **AWS File Analyzer** demonstrates enterprise multi-cloud orchestration across **Cloudflare**, **Microsoft Azure**, **Amazon Web Services (AWS)**, and **Google Cloud (Gemini AI)**:
 
-1. **Global Edge Delivery**: React SPA deployed on **Cloudflare Pages** edge network for sub-millisecond static asset delivery and instant SSL.
-2. **Zero-Trust Identity & Secrets**: .NET 8 API running on **Azure App Service Linux** leveraging **System-Assigned Managed Identity** to retrieve cryptographic JWT signing keys and API credentials from **Azure Key Vault** (zero secrets stored in code or repository).
-3. **Multi-File Parallel AWS S3 Ingestion**: Ingests multiple files concurrently using `Task.WhenAll` into private Amazon S3 buckets and returns short-lived, cryptographically signed **Pre-Signed URLs** (60-min TTL). Database state is synchronized using concurrency-safe thread locks.
-4. **Concurrent Multimodal Generative AI**: Analyzes batches of images, PDFs, and text documents in parallel using **Google Gemini**, with a cost-first fallback hierarchy scaling up to `gemini-3.8-flash`.
-5. **Seamless Dual Authentication**: Supports email/password registration with instant auto-login token issuance, as well as one-tap **Google OAuth 2.0** with automatic account provisioning.
-6. **Cost-Controlled Serverless Database**: Stores user auth, upload history, and cached AI results in **Azure SQL Serverless** configured with a 60-minute auto-pause, resulting in an estimated **$0/month operating cost**.
-7. **End-to-End Reliability**: Validated across a **63-test automated testing pyramid** (xUnit, Vitest, Playwright E2E) with dual GitHub Actions CI/CD workflows deploying on green commits.
+1. **Global Edge Delivery**: React 19 SPA deployed on **Cloudflare Pages** edge network for sub-millisecond static asset delivery, instant SSL, and full deep linking across SPA routes (`/`, `/analyzer`, `/gallery`, `/gallery?view=map`, `/login`).
+2. **Unified Navigation & Interactive API Access**: Persistent top-level navigation links provide instant switching between the **Landing Page**, **Live Analyzer**, **Photo Gallery & Map**, and direct one-click **Swagger API Documentation** from all main application views.
+3. **Zero-Trust Identity & Secrets**: .NET 8 API running on **Azure App Service Linux** leveraging **System-Assigned Managed Identity** to retrieve cryptographic JWT signing keys and API credentials from **Azure Key Vault** (zero secrets stored in code or repository).
+4. **Multi-File Parallel AWS S3 Ingestion**: Ingests multiple files concurrently using `Task.WhenAll` into private Amazon S3 buckets and returns short-lived, cryptographically signed **Pre-Signed URLs** (60-min TTL). Database state is synchronized using concurrency-safe thread locks.
+5. **Concurrent Multimodal Generative AI**: Analyzes batches of images, PDFs, and text documents in parallel using **Google Gemini**, with a cost-first fallback hierarchy scaling up to `gemini-3.8-flash`.
+6. **Seamless Dual Authentication**: Supports email/password registration with instant auto-login token issuance, as well as one-tap **Google OAuth 2.0** with automatic account provisioning.
+7. **Cost-Controlled Serverless Database**: Stores user auth, upload history, and cached AI results in **Azure SQL Serverless** configured with a 60-minute auto-pause, resulting in an estimated **$0/month operating cost**.
+8. **End-to-End Reliability**: Validated across a **65-test automated testing pyramid** (26 xUnit backend, 29 Vitest frontend, 10 Playwright E2E) with dual GitHub Actions CI/CD workflows deploying on green commits.
 
 ---
 
@@ -219,7 +219,8 @@ npm run dev
 
 See [`future_work.md`](future_work.md) for the detailed product and engineering roadmap, including photo collections, Google Photos and OneDrive integrations, and a possible Chrome extension.
 
-- [ ] Visual photo collections and a map view based on extracted image metadata.
+- [x] Visual photo collections and interactive Leaflet map view based on extracted landmark coordinates (`/gallery` & `/gallery?view=map`).
+- [x] Persistent cross-view navigation (Landing Page, Analyzer, Gallery, and Swagger API documentation links).
 - [ ] Connected cloud-photo imports and provider-supported metadata write-back.
 - [ ] Browser extension actions for analyzing photos from supported websites.
 - [ ] Vector embeddings with pgvector or Azure AI Search for semantic querying.
@@ -229,8 +230,7 @@ See [`future_work.md`](future_work.md) for the detailed product and engineering 
 
 Every push to `main` executes continuous integration and multi-cloud deployment workflows:
 
-1. **Regression & E2E Validation** ([`.github/workflows/regression.yml`](.github/workflows/regression.yml)): Runs all 25 .NET xUnit tests, all 17 Vite/Vitest component tests, and 7 Playwright browser scenarios across both guest and authenticated user journeys.
+1. **Regression & E2E Validation** ([`.github/workflows/regression.yml`](.github/workflows/regression.yml)): Runs all 26 .NET xUnit tests, all 29 Vite/Vitest component tests, and 10 Playwright browser scenarios across both guest and authenticated user journeys.
 2. **Azure App Service Deployment** ([`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)): Deploys the .NET 8 API to Azure Linux App Service using secretless GitHub OpenID Connect (OIDC) federated credentials (`azure/login@v2`). No permanent Azure passwords or service principal secrets are stored in GitHub repository secrets.
 3. **Cloudflare Pages Edge Delivery** ([`https://aws-file-analyzer.pages.dev`](https://aws-file-analyzer.pages.dev)): Continuous deployment is fully automated via GitHub Actions using Cloudflare Wrangler (`cloudflare/wrangler-action@v3`) with repository secret `CLOUDFLARE_API_TOKEN` and variable `PAGES_DEPLOY_ENABLED: true`.
-4. **Cloudflare Workers Builds** ([`https://aws-file-analyzer.bradshin231.workers.dev`](https://aws-file-analyzer.bradshin231.workers.dev)): Connected directly to the GitHub repository, providing an independent, high-availability edge static asset distribution layer.
 

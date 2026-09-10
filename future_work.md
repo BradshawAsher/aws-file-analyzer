@@ -4,17 +4,17 @@ This roadmap captures improvements that would make AWS File Analyzer more useful
 
 ## Next Up
 
-### Photo gallery and collections
+### Photo gallery and collections (Shipped in v1.1)
 
-Add a visual library for uploaded images so users can browse prior work instead of treating each upload as a one-time action.
+A visual library and interactive map for uploaded images have been shipped live (`/gallery` & `/gallery?view=map`):
 
-- Generate lightweight thumbnails after upload and keep original files private in AWS S3.
-- Group images into named collections with cover images, descriptions, and created/updated timestamps.
-- Store collection membership, image metadata, and ownership in Azure SQL.
-- Add search and filters for Gemini-generated tags, file type, upload date, and likely location.
-- Display EXIF details and an optional map when location metadata is available.
-- Use short-lived presigned URLs so gallery access does not require making the S3 bucket public.
-- Support bulk selection, re-analysis, moving images between collections, and deleting owned files.
+- [x] Search, tags, and category filters (Landmark, Document, General Photo, Code/Diagram).
+- [x] Interactive Leaflet world map with automatic coordinate pin placement based on Gemini landmark extraction.
+- [x] Short-lived AWS S3 pre-signed URLs ensuring private S3 bucket protection.
+- [x] Audio narration player for AI visual descriptions via Web Speech API.
+- [x] Persistent cross-navigation links (Landing Page, Analyzer, Swagger API docs).
+- [ ] Group images into user-created custom named collections.
+- [ ] Bulk selection, re-analysis, and manual deletion of owned files.
 
 ## Product Improvements
 
