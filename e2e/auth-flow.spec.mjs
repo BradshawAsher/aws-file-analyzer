@@ -79,8 +79,29 @@ test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
     await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
 
     // Test Logout
-    await page.getByRole('button', { name: 'Logout' }).click();
+    await page.getByRole('button', { name: /log\s*out/i }).first().click();
     await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('User can open Photo Gallery and switch between Photo Grid and World Map', async ({ page }) => {
+    await page.getByRole('button', { name: /Try the live analyzer/i }).click();
+    await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
+
+    // Click Gallery & Map tab
+    await page.getByRole('button', { name: /Photo Gallery & Map/i }).click();
+
+    // Verify Gallery page loads
+    await expect(page.locator('h1')).toContainText('Photo Gallery & Geolocation Map', { timeout: 15000 });
+    await expect(page.getByRole('button', { name: /Photo Grid/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /World Map View/i })).toBeVisible();
+
+    // Switch to World Map View
+    await page.getByRole('button', { name: /World Map View/i }).click();
+    await expect(page.getByText(/photos with detected geographic landmarks/i)).toBeVisible();
+
+    // Return to Analyzer
+    await page.getByRole('button', { name: /Back to Analyzer/i }).click();
+    await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 10000 });
   });
 
   test('New User Registration seamlessly auto-logs in directly to Dashboard without relogging', async ({ page }) => {
@@ -129,4 +150,5 @@ test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
     await expect(page.getByText(/Your guest demo upload and AI analysis were successfully claimed/i)).toBeVisible();
   });
 });
+
 

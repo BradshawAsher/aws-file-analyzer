@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import apiClient from "./apiClient";
 import AiVoicePlayer from "./AiVoicePlayer";
 
-const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, setAnalysisText, cleanAnalysisText }) => {
+const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, onViewGallery, setAnalysisText, cleanAnalysisText }) => {
   const [files, setFiles] = useState([]);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [analyzeResults, setAnalyzeResults] = useState([]);
@@ -220,9 +220,19 @@ const FileUploadAnalyzer = ({ handleLogout, isGuest = false, onSignIn, setAnalys
 
       {analyzeResults.length > 0 && (
         <div className="mt-6 space-y-4">
-          <h2 className="font-bold text-gray-800 text-lg border-b pb-2">
-            Analysis Results ({analyzeResults.length})
-          </h2>
+          <div className="flex items-center justify-between border-b pb-2">
+            <h2 className="font-bold text-gray-800 text-lg">
+              Analysis Results ({analyzeResults.length})
+            </h2>
+            {onViewGallery && (
+              <button
+                onClick={onViewGallery}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition flex items-center gap-1 shadow-sm"
+              >
+                <span>🗺️ View in Gallery & Map</span> <span>→</span>
+              </button>
+            )}
+          </div>
           {analyzeResults.map((result, idx) => {
             const presignedLink = fileUrls[idx];
             let parsed = null;

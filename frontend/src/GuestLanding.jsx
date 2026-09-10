@@ -35,7 +35,7 @@ const stack = [
   ["Gemini", "Multimodal analysis with model fallback"],
 ];
 
-export default function GuestLanding({ onLogin, onTryGuest, isStartingGuest = false, guestError = "" }) {
+export default function GuestLanding({ onLogin, onTryGuest, onViewGallery, isStartingGuest = false, guestError = "" }) {
   const [selectedSample, setSelectedSample] = useState(samples[0]);
   const swaggerUrl = `${API_BASE_URL}/swagger/index.html`;
 
@@ -50,6 +50,15 @@ export default function GuestLanding({ onLogin, onTryGuest, isStartingGuest = fa
             <span>AWS File Analyzer</span>
           </a>
           <div className="flex items-center gap-3">
+            {onViewGallery && (
+              <button
+                type="button"
+                onClick={onViewGallery}
+                className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-blue-300 transition hover:bg-white/10 hover:text-white sm:block"
+              >
+                🗺️ Gallery & Map
+              </button>
+            )}
             <a
               href={swaggerUrl}
               target="_blank"
@@ -88,6 +97,15 @@ export default function GuestLanding({ onLogin, onTryGuest, isStartingGuest = fa
               >
                 {isStartingGuest ? "Starting guest session..." : "Try the live analyzer as a guest"}
               </button>
+              {onViewGallery && (
+                <button
+                  type="button"
+                  onClick={onViewGallery}
+                  className="rounded-xl border border-blue-400/30 bg-blue-500/10 px-6 py-3 text-center font-bold text-blue-200 transition hover:border-blue-400/60 hover:bg-blue-500/20"
+                >
+                  🗺️ Explore Gallery & Map
+                </button>
+              )}
               <a
                 href={swaggerUrl}
                 target="_blank"

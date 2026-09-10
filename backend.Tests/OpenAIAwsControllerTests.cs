@@ -190,5 +190,17 @@ namespace OpenAiChat.Tests
             var actualResult = Assert.IsType<string>(okResult.Value);
             Assert.Equal(expectedAnalysis, actualResult);
         }
+
+        [Fact]
+        public async Task GetAnalysisResults_WhenConnectionStringIsInvalid_ReturnsBadRequest()
+        {
+            _mockUnitOfWork.Setup(u => u.IsDbConnectionStringGood())
+                .ReturnsAsync(false);
+
+            var result = await _controller.GetAnalysisResults();
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Connection string is wrong!", badRequest.Value);
+        }
     }
 }

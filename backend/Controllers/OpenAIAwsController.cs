@@ -152,15 +152,11 @@ namespace OpenAiChat.Controllers
         }
 
         /// <summary>
-        ///  List all analyzed files
+        ///  List all analyzed files with fresh presigned URLs and metadata
         /// </summary>
         /// <returns>Status code</returns>
-        /// [ProducesResponseType(StatusCodes.Status200OK // Success response parsed files
-        /// [ProducesResponseType(StatusCodes.Status400BadRequest)] // 400: wrong connection string
-        /// [ProducesResponseType(StatusCodes.Status404NotFound)] // 404: no files loaded
-        /// [ProducesResponseType(StatusCodes.Status500InternalServerError)] // 500: internal server error
         [HttpGet("ListAnalysisResults")]
-        [Authorize(Roles = "User,Admin")]
+        [Authorize(Roles = "User,Admin,Guest")]
         public async Task<IActionResult> GetAnalysisResults()
         {
             // Test connection string
@@ -174,21 +170,56 @@ namespace OpenAiChat.Controllers
             var query = from a in _unitOfWork.FileUploadHistory.GetDbSet()
                         join b in _unitOfWork.FileAnalysisResult.GetDbSet()
                         on a.PresignedUrl equals b.PresignedUrl
+                        orderby a.LoadTime descending
                         select new
                         {
+                            a.Id,
                             a.LocalFileName,
                             a.FileExtension,
+                            a.AwsKey,
+                            a.PresignedUrl,
+                            a.LoadTime,
                             b.AnalysisText
                         };
             var results = await query.ToListAsync()
                 .ConfigureAwait(false);
 
-            if (results != null && results.Any())
+            if (results == null || !results.Any())
             {
-                return Ok(results);
+                return NotFound($"No files analyzed");
             }
 
-            return NotFound($"No files analyzed");
+            string? bucketName = _configuration["AWS:S3BucketName"];
+            var enrichedResults = new List<object>(results.Count);
+
+            foreach (var item in results)
+            {
+                string freshUrl = item.PresignedUrl ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(item.AwsKey) && !string.IsNullOrWhiteSpace(bucketName))
+                {
+                    try
+                    {
+                        freshUrl = await GeneratePreSignedUrl(item.AwsKey, 60, bucketName).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to generate fresh presigned URL for key {AwsKey}", item.AwsKey);
+                    }
+                }
+
+                enrichedResults.Add(new
+                {
+                    id = item.Id,
+                    localFileName = item.LocalFileName,
+                    fileExtension = item.FileExtension,
+                    awsKey = item.AwsKey,
+                    presignedUrl = freshUrl,
+                    loadTime = item.LoadTime,
+                    analysisText = item.AnalysisText
+                });
+            }
+
+            return Ok(enrichedResults);
         }
 
         /// <summary>
