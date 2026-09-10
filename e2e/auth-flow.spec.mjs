@@ -149,6 +149,70 @@ test.describe('AWS File Analyzer Multi-Cloud E2E Flow', () => {
     await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
     await expect(page.getByText(/Your guest demo upload and AI analysis were successfully claimed/i)).toBeVisible();
   });
+
+  test('Direct deep linking opens requested routes (/login, /gallery)', async ({ page }) => {
+    // Deep link directly to /login
+    await page.goto(`${baseURL}/login`);
+    await expect(page.getByRole('heading', { name: 'Log In' })).toBeVisible({ timeout: 15000 });
+    expect(page.url()).toContain('/login');
+
+    // Deep link directly to /gallery
+    await page.goto(`${baseURL}/gallery`);
+    await expect(page.locator('h1')).toContainText('Photo Gallery & Geolocation Map', { timeout: 15000 });
+    expect(page.url()).toContain('/gallery');
+  });
+
+  test('Browser Back and Forward history navigation works smoothly across SPA routes', async ({ page }) => {
+    await page.goto(baseURL);
+
+    // 1. Landing -> Login
+    await page.getByRole('button', { name: 'Log in' }).click();
+    await expect(page.getByRole('heading', { name: 'Log In' })).toBeVisible({ timeout: 10000 });
+    expect(page.url()).toContain('/login');
+
+    // 2. Browser Back -> Landing
+    await page.goBack();
+    await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 10000 });
+    expect(page.url()).not.toContain('/login');
+
+    // 3. Browser Forward -> Login
+    await page.goForward();
+    await expect(page.getByRole('heading', { name: 'Log In' })).toBeVisible({ timeout: 10000 });
+    expect(page.url()).toContain('/login');
+
+    // Return to Landing
+    await page.goBack();
+
+    // 4. Start guest analyzer -> /analyzer
+    await page.getByRole('button', { name: /Try the live analyzer/i }).click();
+    await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 15000 });
+    expect(page.url()).toContain('/analyzer');
+
+    // 5. Navigate to Gallery -> /gallery
+    await page.getByRole('button', { name: /Photo Gallery & Map/i }).click();
+    await expect(page.locator('h1')).toContainText('Photo Gallery & Geolocation Map', { timeout: 15000 });
+    expect(page.url()).toContain('/gallery');
+
+    // 6. Switch to Map view -> /gallery?view=map
+    await page.getByRole('button', { name: /World Map View/i }).click();
+    await expect(page.getByText(/photos with detected geographic landmarks/i)).toBeVisible();
+    expect(page.url()).toContain('view=map');
+
+    // 7. Browser Back -> Grid View (/gallery)
+    await page.goBack();
+    await expect(page.getByRole('button', { name: /Photo Grid/i })).toBeVisible();
+    expect(page.url()).not.toContain('view=map');
+
+    // 8. Browser Back -> Analyzer (/analyzer)
+    await page.goBack();
+    await expect(page.locator('h1')).toContainText('AI Multi-File Analyzer', { timeout: 10000 });
+    expect(page.url()).toContain('/analyzer');
+
+    // 9. Browser Forward -> Gallery (/gallery)
+    await page.goForward();
+    await expect(page.locator('h1')).toContainText('Photo Gallery & Geolocation Map', { timeout: 10000 });
+    expect(page.url()).toContain('/gallery');
+  });
 });
 
 

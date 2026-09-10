@@ -1,4 +1,4 @@
-import React from "react";
+import React, { act } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import apiClient from "./apiClient";
@@ -9,6 +9,7 @@ describe("App guest session", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    window.history.replaceState({}, "", "/");
   });
 
   test("starts the real analyzer as a guest and offers sign in", async () => {
@@ -57,6 +58,46 @@ describe("App guest session", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Staged test image/i)).toBeInTheDocument();
     expect(localStorage.getItem("pending_guest_claim")).toBeNull();
+  });
+
+  test("deep links directly to /login on page load", async () => {
+    window.history.replaceState({}, "", "/login");
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: /^Log In$/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/login");
+  });
+
+  test("handles browser back and forward history transitions", async () => {
+    window.history.replaceState({}, "", "/");
+
+    render(<App />);
+
+    // Click Log In on landing page
+    const loginButton = await screen.findByRole("button", { name: /^Log in$/i });
+    fireEvent.click(loginButton);
+
+    expect(await screen.findByRole("heading", { name: /^Log In$/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/login");
+
+    // Simulate browser Back button to "/"
+    act(() => {
+      window.history.replaceState({}, "", "/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(await screen.findByRole("button", { name: /Try the live analyzer as a guest/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/");
+
+    // Simulate browser Forward button to "/login"
+    act(() => {
+      window.history.replaceState({}, "", "/login");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(await screen.findByRole("heading", { name: /^Log In$/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/login");
   });
 });
 

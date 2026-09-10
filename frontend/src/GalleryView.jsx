@@ -3,6 +3,7 @@ import apiClient from "./apiClient";
 import AiVoicePlayer from "./AiVoicePlayer";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { getRouteFromLocation, navigateTo } from "./router";
 
 // Geolocation coordinate dictionary for landmarks, cities, and countries
 const GEO_DICTIONARY = {
@@ -142,13 +143,31 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [viewMode, setViewMode] = useState("grid"); // "grid" | "map"
+  const [viewMode, setViewMode] = useState(() => getRouteFromLocation().viewMode || "grid"); // "grid" | "map"
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
+
+  const handleSwitchView = (mode) => {
+    setViewMode(mode);
+    const params = new URLSearchParams();
+    if (mode === "map") params.set("view", "map");
+    if (selectedItem) params.set("item", selectedItem.id);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    navigateTo(`/gallery${qs}`);
+  };
+
+  const handleSelectItem = (item) => {
+    setSelectedItem(item);
+    const params = new URLSearchParams();
+    if (viewMode === "map") params.set("view", "map");
+    if (item) params.set("item", item.id);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    navigateTo(`/gallery${qs}`);
+  };
 
   const fetchGallery = async () => {
     setLoading(true);
@@ -172,6 +191,36 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
   useEffect(() => {
     fetchGallery();
   }, []);
+
+  // Auto-open modal if itemId is present in URL when items load
+  useEffect(() => {
+    if (items.length > 0) {
+      const route = getRouteFromLocation();
+      if (route.itemId) {
+        const match = items.find((it) => String(it.id) === String(route.itemId));
+        if (match) setSelectedItem(match);
+      }
+    }
+  }, [items]);
+
+  // Handle browser Back / Forward events within Gallery
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = getRouteFromLocation();
+      if (route.view === "gallery") {
+        setViewMode(route.viewMode);
+        if (route.itemId && items.length > 0) {
+          const match = items.find((it) => String(it.id) === String(route.itemId));
+          setSelectedItem(match || null);
+        } else {
+          setSelectedItem(null);
+        }
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [items]);
 
   // Filter items
   const processedItems = useMemo(() => {
@@ -309,7 +358,7 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
         marker.on("popupopen", () => {
           const btn = document.getElementById(`view-pin-${item.id}`);
           if (btn) {
-            btn.onclick = () => setSelectedItem(item);
+            btn.onclick = () => handleSelectItem(item);
           }
         });
 
@@ -389,7 +438,7 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
           {/* Mode Toggle: Grid vs Map */}
           <div className="inline-flex p-1 bg-slate-100 rounded-xl">
             <button
-              onClick={() => setViewMode("grid")}
+              onClick={() => handleSwitchView("grid")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition ${
                 viewMode === "grid"
                   ? "bg-white text-blue-600 shadow-sm"
@@ -399,7 +448,7 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
               <span>🖼️</span> Photo Grid ({filteredItems.length})
             </button>
             <button
-              onClick={() => setViewMode("map")}
+              onClick={() => handleSwitchView("map")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition ${
                 viewMode === "map"
                   ? "bg-white text-blue-600 shadow-sm"
@@ -498,7 +547,7 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
             return (
               <div
                 key={item.id}
-                onClick={() => setSelectedItem(item)}
+                onClick={() => handleSelectItem(item)}
                 className="group bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-lg transition cursor-pointer flex flex-col"
               >
                 {/* Media Preview */}
@@ -576,7 +625,7 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
       {selectedItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto"
-          onClick={() => setSelectedItem(null)}
+          onClick={() => handleSelectItem(null)}
         >
           <div
             className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100"
@@ -597,7 +646,7 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
                 </div>
               )}
               <button
-                onClick={() => setSelectedItem(null)}
+                onClick={() => handleSelectItem(null)}
                 className="absolute top-4 right-4 bg-black/60 hover:bg-black/90 text-white rounded-full h-8 w-8 grid place-items-center transition"
               >
                 ✕
@@ -672,7 +721,7 @@ export default function GalleryView({ onBackToAnalyzer, onSignIn, isGuest, handl
               {/* Close Button */}
               <div className="pt-2 text-right">
                 <button
-                  onClick={() => setSelectedItem(null)}
+                  onClick={() => handleSelectItem(null)}
                   className="px-5 py-2 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition"
                 >
                   Close

@@ -6,11 +6,12 @@ import GuestLanding from "./GuestLanding";
 import GalleryView from "./GalleryView";
 import apiClient from "./apiClient";
 import { getJwtRole, isJwtUsable } from "./tokenUtils";
+import { getRouteFromLocation, navigateTo } from "./router";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingToken, setIsCheckingToken] = useState(true);
-  const [currentView, setCurrentView] = useState("home"); // "home" | "analyzer" | "gallery" | "auth"
+  const [currentView, setCurrentView] = useState(() => getRouteFromLocation().view); // "home" | "analyzer" | "gallery" | "auth"
   const [sessionType, setSessionType] = useState(null);
   const [isStartingGuest, setIsStartingGuest] = useState(false);
   const [guestError, setGuestError] = useState("");
@@ -24,19 +25,45 @@ export default function App() {
     setAiAnalysisText("");
   };
 
-  // --- Initial Check (Login Persistence) ---
+  // --- Initial Check (Login Persistence & Deep Linking) ---
   useEffect(() => {
-    // Check if a token exists in local storage when the app first loads
     const token = localStorage.getItem('authToken');
+    const route = getRouteFromLocation();
+
     if (isJwtUsable(token)) {
       setIsLoggedIn(true);
       setSessionType(getJwtRole(token) === "Guest" ? "guest" : "user");
-      setCurrentView("analyzer");
-    } else if (token) {
-      localStorage.removeItem('authToken');
+      if (route.view === "home" || route.view === "auth") {
+        navigateTo("/analyzer", { replace: true });
+        setCurrentView("analyzer");
+      } else {
+        setCurrentView(route.view);
+      }
+    } else {
+      if (token) {
+        localStorage.removeItem('authToken');
+      }
+      if (route.view === "gallery") {
+        handleOpenGalleryFromLanding();
+      } else if (route.view === "analyzer") {
+        handleGuestSession();
+      } else {
+        setCurrentView(route.view);
+      }
     }
-    setIsCheckingToken(false); // Done checking
+    setIsCheckingToken(false);
     cleanAnalysisText();
+  }, []);
+
+  // --- Browser History (Back / Forward) Listener ---
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = getRouteFromLocation();
+      setCurrentView(route.view);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   // Handler passed to the LoginForm
@@ -44,6 +71,7 @@ export default function App() {
     setIsLoggedIn(true);
     setSessionType("user");
     setCurrentView("analyzer");
+    navigateTo("/analyzer");
     if (!localStorage.getItem('pending_guest_claim')) {
       cleanAnalysisText();
     }
@@ -56,6 +84,7 @@ export default function App() {
     setIsLoggedIn(false);
     setSessionType(null);
     setCurrentView("home");
+    navigateTo("/");
     cleanAnalysisText();
   };
 
@@ -69,6 +98,7 @@ export default function App() {
       setIsLoggedIn(true);
       setSessionType("guest");
       setCurrentView("analyzer");
+      navigateTo("/analyzer");
       cleanAnalysisText();
     } catch (error) {
       const detail = error.response?.data?.message || error.response?.data;
@@ -84,6 +114,7 @@ export default function App() {
       setIsLoggedIn(true);
       setSessionType(getJwtRole(token) === "Guest" ? "guest" : "user");
       setCurrentView("gallery");
+      navigateTo("/gallery");
       return;
     }
 
@@ -95,6 +126,7 @@ export default function App() {
       setIsLoggedIn(true);
       setSessionType("guest");
       setCurrentView("gallery");
+      navigateTo("/gallery");
     } catch (error) {
       const detail = error.response?.data?.message || error.response?.data;
       setGuestError(typeof detail === "string" ? detail : "Unable to load gallery demo.");
@@ -108,6 +140,7 @@ export default function App() {
     setIsLoggedIn(false);
     setSessionType(null);
     setCurrentView("auth");
+    navigateTo("/login");
   };
 
   // Show a loading screen while checking for a token
@@ -119,7 +152,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-100 p-4 sm:p-6">
         <GalleryView
-          onBackToAnalyzer={() => setCurrentView("analyzer")}
+          onBackToAnalyzer={() => navigateTo("/analyzer")}
           onSignIn={handleSignInFromGuest}
           isGuest={sessionType === "guest"}
           handleLogout={handleLogout}
@@ -135,13 +168,13 @@ export default function App() {
         <div className="w-full max-w-xl mb-4 flex items-center justify-between bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentView("analyzer")}
+              onClick={() => navigateTo("/analyzer")}
               className="text-xs font-bold px-3 py-1.5 rounded-xl bg-blue-600 text-white shadow-sm"
             >
               🚀 Analyzer
             </button>
             <button
-              onClick={() => setCurrentView("gallery")}
+              onClick={() => navigateTo("/gallery")}
               className="text-xs font-semibold px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
             >
               🗺️ Photo Gallery & Map
@@ -170,7 +203,7 @@ export default function App() {
           handleLogout={handleLogout}
           isGuest={sessionType === "guest"}
           onSignIn={handleSignInFromGuest}
-          onViewGallery={() => setCurrentView("gallery")}
+          onViewGallery={() => navigateTo("/gallery")}
           setAnalysisText={setAnalysisText}
           cleanAnalysisText={cleanAnalysisText}
         />
@@ -188,7 +221,7 @@ export default function App() {
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 p-6">
         <AuthContainer
           onLoginSuccess={handleSuccessfulLogin}
-          onBack={() => setCurrentView("home")}
+          onBack={() => navigateTo("/")}
         />
       </div>
     );
@@ -196,7 +229,7 @@ export default function App() {
 
   return (
     <GuestLanding
-      onLogin={() => setCurrentView("auth")}
+      onLogin={() => navigateTo("/login")}
       onTryGuest={handleGuestSession}
       onViewGallery={handleOpenGalleryFromLanding}
       isStartingGuest={isStartingGuest}
