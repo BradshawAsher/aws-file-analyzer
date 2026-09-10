@@ -28,9 +28,10 @@
 1. **Global Edge Delivery**: React SPA deployed on **Cloudflare Pages** edge network for sub-millisecond static asset delivery and instant SSL.
 2. **Zero-Trust Identity & Secrets**: .NET 8 API running on **Azure App Service Linux** leveraging **System-Assigned Managed Identity** to retrieve cryptographic JWT signing keys and API credentials from **Azure Key Vault** (zero secrets stored in code or repository).
 3. **Multi-File Parallel AWS S3 Ingestion**: Ingests multiple files concurrently using `Task.WhenAll` into private Amazon S3 buckets and returns short-lived, cryptographically signed **Pre-Signed URLs** (60-min TTL). Database state is synchronized using concurrency-safe thread locks.
-4. **Concurrent Multimodal Generative AI**: Analyzes batches of images, PDFs, and text documents in parallel using **Google Gemini**, with a cost-first fallback hierarchy beginning with `gemini-3.1-flash-lite`.
+4. **Concurrent Multimodal Generative AI**: Analyzes batches of images, PDFs, and text documents in parallel using **Google Gemini**, with a cost-first fallback hierarchy scaling up to `gemini-3.8-flash`.
 5. **Seamless Dual Authentication**: Supports email/password registration with instant auto-login token issuance, as well as one-tap **Google OAuth 2.0** with automatic account provisioning.
 6. **Cost-Controlled Serverless Database**: Stores user auth, upload history, and cached AI results in **Azure SQL Serverless** configured with a 60-minute auto-pause, resulting in an estimated **$0/month operating cost**.
+7. **End-to-End Reliability**: Validated across a **63-test automated testing pyramid** (xUnit, Vitest, Playwright E2E) with dual GitHub Actions CI/CD workflows deploying on green commits.
 
 ---
 
